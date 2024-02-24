@@ -33,7 +33,7 @@ namespace ChessEngine
         public bool IsBitSet(int square)
         {
             ulong mask = 1UL << square;
-            return (data & mask) == 1; // return 1 if the bit is set, 0 if the bit is not set
+            return (data & mask) != 0; // return 1 if the bit is set, 0 if the bit is not set
         }
 
         public ulong GetData()

@@ -95,5 +95,35 @@ namespace ChessEngine
                 }
             }
         }
+
+        public void PrintBoard()
+        {
+            string BoardRepresentation = ""; //initial state to print
+            for (int i = 0; i < 64; i++)
+            {
+                if (WhitePawns.IsBitSet(i)) {BoardRepresentation += "P ";}
+                else if (WhiteKnights.IsBitSet(i)) {BoardRepresentation += "N ";}
+                else if (WhiteBishops.IsBitSet(i)) {BoardRepresentation += "B ";}
+                else if (WhiteRooks.IsBitSet(i)) {BoardRepresentation += "R ";}
+                else if (WhiteQueens.IsBitSet(i)) {BoardRepresentation += "Q ";}
+                else if (WhiteKing.IsBitSet(i)) {BoardRepresentation += "K ";}
+                else if (BlackPawns.IsBitSet(i)) {BoardRepresentation += "p ";}
+                else if (BlackKnights.IsBitSet(i)) {BoardRepresentation += "n ";}
+                else if (BlackBishops.IsBitSet(i)) {BoardRepresentation += "b ";}
+                else if (BlackRooks.IsBitSet(i)) {BoardRepresentation += "r ";}
+                else if (BlackQueens.IsBitSet(i)) {BoardRepresentation += "q ";}
+                else if (BlackKing.IsBitSet(i)) {BoardRepresentation += "k ";}
+                else {BoardRepresentation += "- ";}
+            }
+            BoardRepresentation = new string(BoardRepresentation.Reverse().ToArray());
+            Console.WriteLine(BoardRepresentation.Substring(0,16));
+            Console.WriteLine(BoardRepresentation.Substring(16,16));
+            Console.WriteLine(BoardRepresentation.Substring(32,16));
+            Console.WriteLine(BoardRepresentation.Substring(48,16));
+            Console.WriteLine(BoardRepresentation.Substring(64,16));
+            Console.WriteLine(BoardRepresentation.Substring(80,16));
+            Console.WriteLine(BoardRepresentation.Substring(96, 16));
+            Console.WriteLine(BoardRepresentation.Substring(112,16));
+        }
     }
 }

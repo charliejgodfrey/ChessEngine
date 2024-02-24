@@ -6,6 +6,7 @@ namespace ChessEngine
         static void Main()
         {
             Board board = new Board();
+            board.PrintBoard();
         }
     }
 }
