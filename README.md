@@ -1,6 +1,11 @@
 # ChessEngine
 Trying to code a chess engine in c# 
 
+## Current To-Do List
+- create a bitboard class suitable for storing bitboards of different types
+- create an uploadFEN function in the board class which takes a FEN input and initialises relevent bitboards and variables needed to store the chess position
+
+
 
 # Board Representation
 
