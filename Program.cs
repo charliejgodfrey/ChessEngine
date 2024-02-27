@@ -8,7 +8,8 @@ namespace ChessEngine
             Board board = new Board();
             board.PrintBoard();
             PreComputeData.InitializeAttackBitboards();
-            MoveGenerator.PawnPushes(board);
+            List<Move> moves = MoveGenerator.GeneratePawnMoves(board);
+            Console.WriteLine(moves);
         }
     }
 }
