@@ -40,5 +40,19 @@ namespace ChessEngine
         {
             return data;
         }
+
+        public void PrintData()
+        {
+            string StringOfBitboard = Convert.ToString((long)data, 2);
+            while (StringOfBitboard.Length < 64)
+            {
+                StringOfBitboard = "0" + StringOfBitboard;
+            }
+            StringOfBitboard = string.Join(" ", StringOfBitboard.Select(c => c.ToString())); //adds some space so it's easier to read
+            for (int i = 0; i < 8; i++)
+            {
+                Console.WriteLine(new string(StringOfBitboard.Substring(i*16, 15).Reverse().ToArray())); //prints it line by line (has to be reversed for making sense)
+            }
+        }
     }   
 }

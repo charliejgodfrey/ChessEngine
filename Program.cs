@@ -7,6 +7,8 @@ namespace ChessEngine
         {
             Board board = new Board();
             board.PrintBoard();
+            PreComputeData.InitializeAttackBitboards();
+            MoveGenerator.PawnPushes(board);
         }
     }
 }
