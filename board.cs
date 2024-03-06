@@ -34,9 +34,9 @@ namespace ChessEngine
         public Bitboard WhitePieces = new Bitboard();
         public Bitboard OccupiedSquares = new Bitboard();
 
-        public Board() 
+        public Board(string Fen = DefaultFEN) 
         {
-            this.UploadFEN(DefaultFEN);
+            this.UploadFEN(Fen);
             BlackPieces = new Bitboard(BlackPawns.GetData() | BlackKnights.GetData() | BlackBishops.GetData() | BlackRooks.GetData() | BlackQueens.GetData() | BlackKing.GetData());
             WhitePieces = new Bitboard(WhitePawns.GetData() | WhiteKnights.GetData() | WhiteBishops.GetData() | WhiteRooks.GetData() | WhiteQueens.GetData() | WhiteKing.GetData());
             OccupiedSquares = new Bitboard(BlackPieces.GetData() | WhitePieces.GetData());

@@ -10,13 +10,19 @@ namespace ChessEngine
         public static List<Move> GeneratePawnMoves (Board board)
         {
             List<Move> MoveList = new List<Move>();
-            ulong SinglePushPawns = ((~board.OccupiedSquares.GetData() >> 16) & board.WhitePawns.GetData());
-            ulong DoublePushPawns = (~board.OccupiedSquares.GetData() >> 16) & board.WhitePawns.GetData() & SinglePushPawns;
-            while (SinglePushPawns > 0) //while the bitboard isn't empty
+            Bitboard SinglePushPawns = new Bitboard((~board.OccupiedSquares.GetData() >> 8) & board.WhitePawns.GetData());
+            Bitboard DoublePushPawns = new Bitboard((~board.OccupiedSquares.GetData() >> 16) & board.WhitePawns.GetData() & SinglePushPawns.GetData() & 0xff00);
+            while (SinglePushPawns.GetData() > 0) //while the bitboard isn't empty
             {
-                int startSquare = BitOperations.TrailingZeroCount(SinglePushPawns);
+                int startSquare = SinglePushPawns.LSB();
                 MoveList.Add(new Move(startSquare, startSquare + 8, 0));
                 SinglePushPawns.ClearBit(startSquare); //need to change this to use the bitboard class, will make it all easer TODO
+            }
+            while (DoublePushPawns.GetData() > 0) //while the bitboard isn't empty
+            {
+                int startSquare = DoublePushPawns.LSB();
+                MoveList.Add(new Move(startSquare, startSquare + 16, 0));
+                DoublePushPawns.ClearBit(startSquare); //need to change this to use the bitboard class, will make it all easer TODO
             }
             return MoveList;
         }   
@@ -32,15 +38,19 @@ namespace ChessEngine
 
         public int GetStart()
         {
-            return Data & 127;
+            return Data & 63;
         }
         public int GetTarget()
         {
-            return (Data >> 6) & 127;
+            return (Data >> 6) & 63;
         }
         public int GetFlag() 
         {
-            return (Data >> 12) & 127;
+            return (Data >> 12) & 15;
+        }
+        public void PrintMove()
+        {
+            Console.WriteLine("data: " + Convert.ToString((long)Data, 2) + ", start: " + this.GetStart() + ", target: " + this.GetTarget() + ", flags: " + this.GetFlag());
         }
     }
 }

@@ -1,6 +1,7 @@
 //this is the file where all the bitboard management code is going to be stored
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 namespace ChessEngine
 {
     public class Bitboard 
@@ -39,6 +40,11 @@ namespace ChessEngine
         public ulong GetData()
         {
             return data;
+        }
+
+        public int LSB()
+        {
+            return BitOperations.TrailingZeroCount(data);
         }
 
         public void PrintData()
