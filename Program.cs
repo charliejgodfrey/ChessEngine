@@ -6,16 +6,20 @@ namespace ChessEngine
     {
         static void Main()
         {
-            Board board = new Board("8/8/8/8/3PP3/1P6/P1P2PPP/8");
+            Board board = new Board("rn1qk2r/ppP2pbp/2p1pnp1/3p4/1PPP1B2/2N1PQ1P/P4PP1/R3KB1R");
             board.PrintBoard();
             PreComputeData.InitializeAttackBitboards();
-            List<Move> moves = MoveGenerator.GeneratePawnMoves(board);
+            Move[] moves = MoveGenerator.GeneratePawnMoves(board);
+            int NumberOfMoves = 0;
             foreach (Move move in moves)
             {
-                move.PrintMove();
+                if (move.GetData() != 0)
+                {
+                    move.PrintMove();
+                    NumberOfMoves++;
+                }
             }
-            Console.WriteLine(moves.Count);
-            board.WhitePawns.PrintData();
+            Console.WriteLine(NumberOfMoves);
         }
     }
 }

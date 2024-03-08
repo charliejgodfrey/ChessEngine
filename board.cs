@@ -44,16 +44,16 @@ namespace ChessEngine
 
         public void UploadFEN(string FEN)
         {
-            int currentSquare = 63;
+            int currentSquare = 56;
             foreach (char character in FEN)
             {
                 if (character == '/') //new rank
                 {
-                    continue;
+                    currentSquare -= 17;
                 }
                 if (char.IsDigit(character)) //is it a number?
                 {
-                    currentSquare -= character - '0';
+                    currentSquare += character - '0'; // turns character into a number
                 }
                 else 
                 {
@@ -78,6 +78,7 @@ namespace ChessEngine
                             BlackKing.SetBit(currentSquare);
                             break;
                         case 'P':
+                            Console.WriteLine(currentSquare);
                             WhitePawns.SetBit(currentSquare);
                             break;
                         case 'N':
@@ -98,7 +99,7 @@ namespace ChessEngine
                         default:
                             break;
                     }
-                    currentSquare--;
+                    currentSquare++;
                 }
             }
         }
@@ -122,15 +123,14 @@ namespace ChessEngine
                 else if (BlackKing.IsBitSet(i)) {BoardRepresentation += "k ";}
                 else {BoardRepresentation += "- ";}
             }
-            BoardRepresentation = new string(BoardRepresentation.Reverse().ToArray());
-            Console.WriteLine(BoardRepresentation.Substring(0,16));
-            Console.WriteLine(BoardRepresentation.Substring(16,16));
-            Console.WriteLine(BoardRepresentation.Substring(32,16));
-            Console.WriteLine(BoardRepresentation.Substring(48,16));
-            Console.WriteLine(BoardRepresentation.Substring(64,16));
-            Console.WriteLine(BoardRepresentation.Substring(80,16));
-            Console.WriteLine(BoardRepresentation.Substring(96, 16));
             Console.WriteLine(BoardRepresentation.Substring(112,16));
+            Console.WriteLine(BoardRepresentation.Substring(96,16));
+            Console.WriteLine(BoardRepresentation.Substring(80,16));
+            Console.WriteLine(BoardRepresentation.Substring(64,16));
+            Console.WriteLine(BoardRepresentation.Substring(48,16));
+            Console.WriteLine(BoardRepresentation.Substring(32,16));
+            Console.WriteLine(BoardRepresentation.Substring(16, 16));
+            Console.WriteLine(BoardRepresentation.Substring(0,16));
         }
     }
 }
