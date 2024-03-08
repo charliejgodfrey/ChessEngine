@@ -8,7 +8,8 @@ namespace ChessEngine
     {
         public static Bitboard[] KnightAttackBitboards = new Bitboard[64];
         public static Bitboard[] KingAttackBitboards = new Bitboard[64];
-        public static Bitboard[] PawnAttackBitboards = new Bitboard[64];
+        public static Bitboard[] WhitePawnAttackBitboards = new Bitboard[64];
+        public static Bitboard[] BlackPawnAttackBitboards = new Bitboard[64];
 
         public static void InitializeAttackBitboards()
         {
@@ -43,11 +44,19 @@ namespace ChessEngine
         {
             for (int i = 0; i < 64; i++)
             {
-                PawnAttackBitboards[i] = new Bitboard();
+                WhitePawnAttackBitboards[i] = new Bitboard();
                 int file = i % 8;
                 int rank = i / 8; 
-                if (file != 0 && rank != 7) PawnAttackBitboards[i].SetBit(i + 7);//makes sure there aren't any attacks that would be off the board
-                if (file != 7 && rank != 7) PawnAttackBitboards[i].SetBit(i + 9); //----^
+                if (file != 0 && rank != 7) WhitePawnAttackBitboards[i].SetBit(i + 7);//makes sure there aren't any attacks that would be off the board
+                if (file != 7 && rank != 7) WhitePawnAttackBitboards[i].SetBit(i + 9); //----^
+            }
+            for (int i = 0; i < 64; i++)
+            {
+                BlackPawnAttackBitboards[i] = new Bitboard();
+                int file = i % 8;
+                int rank = i / 8; 
+                if (file != 0 && rank != 0) BlackPawnAttackBitboards[i].SetBit(i - 7);//makes sure there aren't any attacks that would be off the board
+                if (file != 7 && rank != 0) BlackPawnAttackBitboards[i].SetBit(i - 9); //----^
             }
         }
 

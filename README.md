@@ -2,7 +2,7 @@
 Trying to code a chess engine in c# 
 
 ## Current To-Do List
-- create functions to precompute the attack bitboards of the different pieces on different squares
+- add function for generating king and knight moves
 - import magics for sliding piece move generation
 
 
@@ -23,3 +23,7 @@ This will build off the bitboard representation of the board. Using bitwise oper
 
 ## Check Detection
 This is super fast using bitboards. Bitwise OR operations can be used to easily find all the attacked squares by either side, this can then be bitwise ANDed with the bitboard for the other colours king to see if the king is under attack, this method can be used to see if any particular square is under attack
+
+# SOURCES + CREDIT
+I've used lots of open source information to help me create this - most notable the chess programming wiki which can be found at https://www.chessprogramming.org/Main_Page
+The flagKey.png file is a screenshot of a table from this website

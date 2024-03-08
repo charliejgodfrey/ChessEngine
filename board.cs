@@ -7,7 +7,7 @@ namespace ChessEngine
     { 
         public const string DefaultFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"; //this is the default chess starting position
 
-        public int ColourToMove; // 0 for white 1 for black
+        public int ColourToMove = 0; // 0 for white 1 for black
         public int EnPassantSquare;
         public int MoveNumber;
         public bool WhiteShortCastle;
