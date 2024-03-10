@@ -2,7 +2,7 @@
 Trying to code a chess engine in c# 
 
 ## Current To-Do List
-- add function for generating king and knight moves
+- implement the bitmasking to extract relevent bits for sliding move generation
 - import magics for sliding piece move generation
 
 
@@ -20,6 +20,9 @@ Most of these bitboards can be generated using bitwise operations and are theref
 # Move Generation
 
 This will build off the bitboard representation of the board. Using bitwise operations move generation should be very fast. Precomputed data can also be used to speed things up, such as pre calculating the potential knight moves from each square and how many squares in each direction there are from each square on the board until the edge of the board
+
+## sliding moves
+originally i tried a method of using a row based lookup table for generating sliding moves which was rotated depending on which line of attack was being calculated but this ended up getting surprisingly messy and using a lot of expensive bitwise operations so i am replacing this method with a magic bitboard approach
 
 ## Check Detection
 This is super fast using bitboards. Bitwise OR operations can be used to easily find all the attacked squares by either side, this can then be bitwise ANDed with the bitboard for the other colours king to see if the king is under attack, this method can be used to see if any particular square is under attack

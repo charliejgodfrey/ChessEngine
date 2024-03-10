@@ -47,6 +47,49 @@ namespace ChessEngine
             return BitOperations.TrailingZeroCount(data);
         }
 
+        public ulong FlipVertical(ulong x, bool setboard = false) //stole this from the internet
+        {
+            const ulong k1 = (0x00FF00FF00FF00FF);
+            const ulong k2 = (0x0000FFFF0000FFFF);
+            x = ((x >>  8) & k1) | ((x & k1) <<  8);
+            x = ((x >> 16) & k2) | ((x & k2) << 16);
+            x = ( x >> 32)       | ( x       << 32);
+            if (setboard) {data = x;}
+            return x;
+        }
+
+        public ulong FlipHorizontal(ulong x, bool setboard = false) { //stole this from the internet
+            const ulong k1 = (0x5555555555555555);
+            const ulong k2 = (0x3333333333333333);
+            const ulong k4 = (0x0f0f0f0f0f0f0f0f);
+            x = ((x >> 1) & k1) | ((x & k1) << 1);
+            x = ((x >> 2) & k2) | ((x & k2) << 2);
+            x = ((x >> 4) & k4) | ((x & k4) << 4);
+            if (setboard) {data = x;}
+            return x;
+        }
+
+        public ulong FlipDiagA8H1(ulong x) { //stole this from the internet
+            ulong t;
+            const ulong k1 = (0xaa00aa00aa00aa00);
+            const ulong k2 = (0xcccc0000cccc0000);
+            const ulong k4 = (0xf0f0f0f00f0f0f0f);
+            t  =       x ^ (x << 36) ;
+            x ^= k4 & (t ^ (x >> 36));
+            t  = k2 & (x ^ (x << 18));
+            x ^=       t ^ (t >> 18) ;
+            t  = k1 & (x ^ (x <<  9));
+            x ^=       t ^ (t >>  9) ;
+            return x;
+        }
+
+        public ulong Rotate90() {
+            return FlipDiagA8H1(FlipVertical(data));
+        }
+        public ulong RotateAnti90() {
+            return FlipVertical(FlipDiagA8H1(data));
+        }
+
         public void PrintData()
         {
             string StringOfBitboard = Convert.ToString((long)data, 2);

@@ -10,15 +10,15 @@ namespace ChessEngine
         public static Bitboard[] KingAttackBitboards = new Bitboard[64];
         public static Bitboard[] WhitePawnAttackBitboards = new Bitboard[64];
         public static Bitboard[] BlackPawnAttackBitboards = new Bitboard[64];
+        public static int[,] HorizontalAttacks = new int[128,8];
 
         public static void InitializeAttackBitboards()
         {
             PreComputeKnightAttacks();
             PreComputePawnAttacks();
             PreComputeKingAttacks();
+            PreComputeSlidingAttacks();
         }
-
-        
 
         private static void PreComputeKingAttacks()
         {
