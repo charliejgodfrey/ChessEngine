@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Collections;
+
 namespace ChessEngine
 {
     public class Bitboard 
@@ -47,6 +49,11 @@ namespace ChessEngine
             return BitOperations.TrailingZeroCount(data);
         }
 
+        public void SetData(ulong NewData)
+        {
+            data = NewData;
+        }
+
         public ulong FlipVertical(ulong x, bool setboard = false) //stole this from the internet
         {
             const ulong k1 = (0x00FF00FF00FF00FF);
@@ -86,8 +93,21 @@ namespace ChessEngine
         public ulong Rotate90() {
             return FlipDiagA8H1(FlipVertical(data));
         }
+
         public ulong RotateAnti90() {
             return FlipVertical(FlipDiagA8H1(data));
+        }
+
+        public int ActiveBits() //counts the number of ones in a bit mask
+        {
+            Bitboard DataCopy = new Bitboard(data);
+            int Count = 0;
+            while (DataCopy.GetData() > 0)
+            {
+                DataCopy.ClearBit(DataCopy.LSB());
+                Count++;
+            }
+            return Count;
         }
 
         public void PrintData()

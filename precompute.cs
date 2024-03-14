@@ -1,6 +1,7 @@
 //this is where the code for precomputing certain values is
 using System;
 using System.Collections.Generic;
+using System.Collections;
 
 namespace ChessEngine 
 {
@@ -10,14 +11,37 @@ namespace ChessEngine
         public static Bitboard[] KingAttackBitboards = new Bitboard[64];
         public static Bitboard[] WhitePawnAttackBitboards = new Bitboard[64];
         public static Bitboard[] BlackPawnAttackBitboards = new Bitboard[64];
-        public static int[,] HorizontalAttacks = new int[128,8];
+        public static ulong[] RookMasks = new ulong[64];
+        public static ulong[] RookMagics = new ulong[64];
 
         public static void InitializeAttackBitboards()
         {
             PreComputeKnightAttacks();
             PreComputePawnAttacks();
             PreComputeKingAttacks();
-            PreComputeSlidingAttacks();
+            PreComputeRookMasks();
+            ComputeMagics();
+        }
+
+        public static void ComputeMagics()
+        {
+            for (int i = 0; i < 64; i++)
+            {
+                RookMagics[i] = Magic.FindMagic(i, RookMasks);
+                Console.WriteLine(RookMagics[i]);
+            }
+        }
+
+        private static void PreComputeRookMasks()
+        {
+            for (int i = 0; i < 64; i++)
+            {
+                ulong mask = 0UL;
+                int file = i % 8;
+                int rank = i / 8;
+                mask |= 0x7eUL << (8*rank);
+                mask |= 0x0001010101010100UL << file;
+            }
         }
 
         private static void PreComputeKingAttacks()

@@ -3,11 +3,21 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 
+
 namespace ChessEngine 
 {
     public static class MoveGenerator
     //the move arrays are initialised with length 218 as this is the most possible moves in any chess position
     {
+        // public static void GenerateRookAttacks(Board board, int square)
+        // {
+        //     ulong mask = PreComputeData.RookMasks[square];
+        //     ulong ReleventBits = board.OccupiedSquares.GetData() & mask;
+        //     ulong hash = ReleventBits * Magic.Rooks[square].magic; //<---- to do
+        //     ulong index = hash >> (Magic.Rooks[square].shift);
+        //     Bitboard Attacks = Magic.RookAttacks[index];
+        // }
+
         public static Move[] GenerateKingMoves(Board board)
         {
             Move[] MoveList = new Move[218];
