@@ -9,14 +9,39 @@ namespace ChessEngine
     public static class MoveGenerator
     //the move arrays are initialised with length 218 as this is the most possible moves in any chess position
     {
-        // public static void GenerateRookAttacks(Board board, int square)
-        // {
-        //     ulong mask = PreComputeData.RookMasks[square];
-        //     ulong ReleventBits = board.OccupiedSquares.GetData() & mask;
-        //     ulong hash = ReleventBits * Magic.Rooks[square].magic; //<---- to do
-        //     ulong index = hash >> (Magic.Rooks[square].shift);
-        //     Bitboard Attacks = Magic.RookAttacks[index];
-        // }
+        public static Move[] GenerateRookMoves(Board board)
+        {
+            Bitboard RookLocations = (board.ColourToMove == 0 ? board.WhiteRooks : board.BlackRooks);
+            Move[] Moves = new Move[218];
+            int MoveNumber = 0;
+            while (RookLocations.GetData() > 0) //cycles through each rook on the board
+            {
+                int startSquare = RookLocations.LSB();
+                Bitboard RookAttacks = GenerateRookAttacks(board, startSquare);
+                RookAttacks.SetData(RookAttacks.GetData() & ~(board.ColourToMove == 0? board.WhitePieces.GetData() : board.BlackPieces.GetData()));
+                RookLocations.ClearBit(startSquare);
+                while (RookAttacks.GetData() > 0) //for each target square
+                {
+                    int target = RookAttacks.LSB();
+                    int flag = (board.ColourToMove == 0 && board.BlackPieces.IsBitSet(target)) || (board.ColourToMove == 1 && board.WhitePieces.IsBitSet(target)) ? 0b0100 : 0b0000; //pretty much just checks if it's a capture or not
+                    Moves[MoveNumber] = new Move(startSquare, target, flag);
+                    MoveNumber++;
+                    RookAttacks.ClearBit(target);
+                }
+            }
+            return Moves;
+        }
+        public static Bitboard GenerateRookAttacks(Board board, int square)
+        {
+            ulong mask = PreComputeData.RookMasks[square];
+            ulong ReleventBits = board.OccupiedSquares.GetData() & mask;
+            ulong index = ReleventBits * PreComputeData.RookMagics[square]; //the generate move function in the magic file is incorrect, logic here is sound i think
+            index = index >> 52;
+            Bitboard Attacks = PreComputeData.RookAttacks[square, index];
+            Console.WriteLine(Attacks);
+            Attacks.SetData(Attacks.GetData());
+            return Attacks;
+        }
 
         public static Move[] GenerateKingMoves(Board board)
         {

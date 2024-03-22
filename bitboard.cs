@@ -100,12 +100,13 @@ namespace ChessEngine
 
         public int ActiveBits() //counts the number of ones in a bit mask
         {
-            Bitboard DataCopy = new Bitboard(data);
             int Count = 0;
-            while (DataCopy.GetData() > 0)
+            for (int i=0;i<64;i++)
             {
-                DataCopy.ClearBit(DataCopy.LSB());
-                Count++;
+                if (this.IsBitSet(i))
+                {
+                    Count++;
+                }
             }
             return Count;
         }

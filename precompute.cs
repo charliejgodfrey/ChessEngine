@@ -13,6 +13,7 @@ namespace ChessEngine
         public static Bitboard[] BlackPawnAttackBitboards = new Bitboard[64];
         public static ulong[] RookMasks = new ulong[64];
         public static ulong[] RookMagics = new ulong[64];
+        public static Bitboard[,] RookAttacks = new Bitboard[64,8196];
 
         public static void InitializeAttackBitboards()
         {
@@ -27,8 +28,13 @@ namespace ChessEngine
         {
             for (int i = 0; i < 64; i++)
             {
-                RookMagics[i] = Magic.FindMagic(i, RookMasks);
-                Console.WriteLine(RookMagics[i]);
+                (ulong magic, Bitboard[] table) = Magic.FindMagic(i, RookMasks);
+                RookMagics[i] = magic;
+                for (int count = 0; count < table.Length; count++) //setting the move lookup tables
+                {
+                    RookAttacks[i, count] = table[count];
+                }
+                Console.WriteLine("magic found!"+i);
             }
         }
 
@@ -41,6 +47,7 @@ namespace ChessEngine
                 int rank = i / 8;
                 mask |= 0x7eUL << (8*rank);
                 mask |= 0x0001010101010100UL << file;
+                RookMasks[i] =  mask;
             }
         }
 
