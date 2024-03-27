@@ -7,9 +7,17 @@ namespace ChessEngine
     {
         static void Main()
         {
-            Board board = new Board("rn1qk2r/ppP2pbp/2p1pnp1/3p4/1PPP1B2/2N1PQ1P/5PP1/R3KB1R");
+            Board board = new Board("r1bqkbnr/ppppp1pp/2n5/5p2/3PP3/2N5/PPP2PPP/R1BQKBNR");
             board.PrintBoard();
             PreComputeData.InitializeAttackBitboards();
+            Move[] moves = MoveGenerator.GenerateMoves(board);
+            Bitboard ba = MoveGenerator.GenerateBishopAttacks(board, 3);
+            ba.PrintData();
+            Magic.FindMagic(3, PreCompute.BishopMasks, false);
+            foreach(Move move in moves)
+            {
+                move.PrintMove();
+            }
         }
     }
 }

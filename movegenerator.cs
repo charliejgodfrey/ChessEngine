@@ -9,15 +9,53 @@ namespace ChessEngine
     public static class MoveGenerator
     //the move arrays are initialised with length 218 as this is the most possible moves in any chess position
     {
-        public static Move[] GenerateRookMoves(Board board)
+        public static Move[] GenerateMoves(Board board)
         {
-            Bitboard RookLocations = (board.ColourToMove == 0 ? board.WhiteRooks : board.BlackRooks);
             Move[] Moves = new Move[218];
             int MoveNumber = 0;
+            //MoveNumber = GenerateRookMoves(board, Moves, MoveNumber);
+            Console.WriteLine("rook added" + MoveNumber);
+            //MoveNumber = GenerateBishopMoves(board, Moves, MoveNumber);
+            Console.WriteLine("bishop added" + MoveNumber);
+            MoveNumber = GenerateQueenMoves(board, Moves, MoveNumber);
+            Console.WriteLine("Queen added" + MoveNumber);
+            //MoveNumber = GeneratePawnMoves(board, Moves, MoveNumber);
+            Console.WriteLine("pawn added" + MoveNumber);
+            //MoveNumber = GenerateKingMoves(board, Moves, MoveNumber);
+            Console.WriteLine("king added" + MoveNumber);
+            return Moves;
+        }
+
+        public static int GenerateQueenMoves(Board board, Move[] Moves, int MoveNumber)
+        {
+            Bitboard QueenLocations = (board.ColourToMove == 0 ? board.WhiteQueens : board.BlackQueens);
+            while (QueenLocations.GetData() > 0)
+            {
+                int startSquare = QueenLocations.LSB();
+                Bitboard QueenAttacks = GenerateRookAttacks(board, startSquare);
+                QueenAttacks.SetData(QueenAttacks.GetData() | GenerateBishopAttacks(board, startSquare).GetData()); //union of bishop moves and rook moves
+                QueenAttacks.SetData(QueenAttacks.GetData() & ~(board.ColourToMove == 0? board.WhitePieces.GetData() : board.BlackPieces.GetData()));
+                QueenLocations.ClearBit(startSquare);
+                while (QueenAttacks.GetData() > 0) //for each target square
+                {
+                    int target = QueenAttacks.LSB();
+                    int flag = (board.ColourToMove == 0 && board.BlackPieces.IsBitSet(target)) || (board.ColourToMove == 1 && board.WhitePieces.IsBitSet(target)) ? 0b0100 : 0b0000; //pretty much just checks if it's a capture or not
+                    Moves[MoveNumber] = new Move(startSquare, target, flag);
+                    MoveNumber++;
+                    QueenAttacks.ClearBit(target);
+                }
+            }
+            return MoveNumber;
+        }
+
+        public static int GenerateRookMoves(Board board, Move[] Moves, int MoveNumber)
+        {
+            Bitboard RookLocations = (board.ColourToMove == 0 ? board.WhiteRooks : board.BlackRooks);
             while (RookLocations.GetData() > 0) //cycles through each rook on the board
             {
                 int startSquare = RookLocations.LSB();
                 Bitboard RookAttacks = GenerateRookAttacks(board, startSquare);
+                Console.WriteLine(startSquare);
                 RookAttacks.SetData(RookAttacks.GetData() & ~(board.ColourToMove == 0? board.WhitePieces.GetData() : board.BlackPieces.GetData()));
                 RookLocations.ClearBit(startSquare);
                 while (RookAttacks.GetData() > 0) //for each target square
@@ -29,41 +67,69 @@ namespace ChessEngine
                     RookAttacks.ClearBit(target);
                 }
             }
-            return Moves;
+            return MoveNumber;
         }
+
+        public static int GenerateBishopMoves(Board board, Move[] Moves, int MoveNumber)
+        {
+            Bitboard BishopLocations = (board.ColourToMove == 0 ? board.WhiteBishops : board.BlackBishops);
+            while (BishopLocations.GetData() > 0) //cycles through each rook on the board
+            {
+                int startSquare = BishopLocations.LSB();
+                Bitboard BishopAttacks = GenerateBishopAttacks(board, startSquare);
+                BishopAttacks.SetData(BishopAttacks.GetData() & ~(board.ColourToMove == 0? board.WhitePieces.GetData() : board.BlackPieces.GetData()));
+                BishopLocations.ClearBit(startSquare);
+                while (BishopAttacks.GetData() > 0) //for each target square
+                {
+                    int target = BishopAttacks.LSB();
+                    int flag = (board.ColourToMove == 0 && board.BlackPieces.IsBitSet(target)) || (board.ColourToMove == 1 && board.WhitePieces.IsBitSet(target)) ? 0b0100 : 0b0000; //pretty much just checks if it's a capture or not
+                    Moves[MoveNumber] = new Move(startSquare, target, flag);
+                    MoveNumber++;
+                    BishopAttacks.ClearBit(target);
+                }
+            }
+            return MoveNumber;
+        }
+
         public static Bitboard GenerateRookAttacks(Board board, int square)
         {
             ulong mask = PreComputeData.RookMasks[square];
             ulong ReleventBits = board.OccupiedSquares.GetData() & mask;
             ulong index = ReleventBits * PreComputeData.RookMagics[square]; //the generate move function in the magic file is incorrect, logic here is sound i think
-            index = index >> 52;
+            index = index >> (64 - Magic.RookBits[square]);
             Bitboard Attacks = PreComputeData.RookAttacks[square, index];
-            Console.WriteLine(Attacks);
-            Attacks.SetData(Attacks.GetData());
+            //Attacks.SetData(Attacks.GetData());
             return Attacks;
         }
 
-        public static Move[] GenerateKingMoves(Board board)
+        public static Bitboard GenerateBishopAttacks(Board board, int square)
         {
-            Move[] MoveList = new Move[218];
-            int MoveNumber = 0;
+            ulong mask = PreComputeData.BishopMasks[square];
+            ulong ReleventBits = board.OccupiedSquares.GetData() & mask;
+            ulong index = ReleventBits * PreComputeData.BishopMagics[square];
+            index = index >> (64 - Magic.BishopBits[square]);
+            Bitboard Attacks = PreComputeData.BishopAttacks[square, index];
+            //Attacks.SetData(Attacks.GetData()); //check if this is necessary
+            return Attacks;
+        }
+
+        public static int GenerateKingMoves(Board board, Move[] Moves, int MoveNumber)
+        {
             int KingSquare = (board.ColourToMove == 0) ? board.WhiteKing.LSB() : board.BlackKing.LSB(); //gets the location of the king
             Bitboard Attacks = new Bitboard(PreComputeData.KingAttackBitboards[KingSquare].GetData() & (board.ColourToMove == 0 ? ~board.WhitePieces.GetData() : ~board.BlackPieces.GetData()));
             while (Attacks.GetData() > 0)
             {
                 int target = Attacks.LSB();
                 int flag = (board.ColourToMove == 0 && board.BlackPieces.IsBitSet(target)) || (board.ColourToMove == 1 && board.WhitePieces.IsBitSet(target)) ? 0b0100 : 0b0000;
-                MoveList[MoveNumber] = new Move(KingSquare, target, flag);
+                Moves[MoveNumber] = new Move(KingSquare, target, flag);
                 MoveNumber++;
                 Attacks.ClearBit(target);
             }
-            return MoveList;
+            return MoveNumber;
         }
 
-        public static Move[] GenerateKnightMoves(Board board)
+        public static int GenerateKnightMoves(Board board, Move[] Moves, int MoveNumber)
         {
-            Move[] MoveList = new Move[218];
-            int MoveNumber = 0;
             Bitboard KnightLocations = new Bitboard(board.ColourToMove == 0 ? board.WhiteKnights.GetData() : board.BlackKnights.GetData()); //gets location of all the knights of a colour
             while (KnightLocations.GetData() > 0) //for all of the knights
             {
@@ -73,19 +139,17 @@ namespace ChessEngine
                 {
                     int target = Attacks.LSB();
                     int flag = (board.ColourToMove == 0 && board.BlackPieces.IsBitSet(target)) || (board.ColourToMove == 1 && board.WhitePieces.IsBitSet(target)) ? 0b0100 : 0b0000;
-                    MoveList[MoveNumber] = new Move(startSquare, target, flag);
+                    Moves[MoveNumber] = new Move(startSquare, target, flag);
                     MoveNumber++;
                     Attacks.ClearBit(target);
                 }
                 KnightLocations.ClearBit(startSquare);
             }
-            return MoveList;
+            return MoveNumber;
         }
 
-        public static Move[] GeneratePawnMoves (Board board) //need to add enPassant
+        public static int GeneratePawnMoves (Board board, Move[] Moves, int MoveNumber) //need to add enPassant
         {
-            Move[] MoveList = new Move[218];
-            int MoveNumber = 0;
             Bitboard SinglePushPawns = new Bitboard((board.ColourToMove == 0) ? (~board.OccupiedSquares.GetData() >> 8) & board.WhitePawns.GetData() : (~board.OccupiedSquares.GetData() << 8) & board.BlackPawns.GetData());
             Bitboard DoublePushPawns = new Bitboard(board.ColourToMove == 0 ? (~board.OccupiedSquares.GetData() >> 16 & board.WhitePawns.GetData() & SinglePushPawns.GetData() & 0xff00) : (~board.OccupiedSquares.GetData() << 16 & board.BlackPawns.GetData() & SinglePushPawns.GetData() & 0x00ff000000000000));
             while (SinglePushPawns.GetData() > 0) //while the bitboard isn't empty
@@ -93,17 +157,17 @@ namespace ChessEngine
                 int startSquare = SinglePushPawns.LSB();
                 if ((startSquare + 8 < 56 && board.ColourToMove == 0) || (startSquare - 8 > 7 && board.ColourToMove == 1)) //checks it isn't a promotion pawn move
                 {
-                    MoveList[MoveNumber] = (new Move(startSquare, startSquare + (board.ColourToMove == 0 ? 8 : -8), 0));
+                    Moves[MoveNumber] = (new Move(startSquare, startSquare + (board.ColourToMove == 0 ? 8 : -8), 0));
                     MoveNumber++;
                 }
-                else {AddPromotions(startSquare, startSquare + (board.ColourToMove == 0 ? 8 : -8), false, MoveList, MoveNumber);MoveNumber+=4;} //adds all the promo moves
+                else {AddPromotions(startSquare, startSquare + (board.ColourToMove == 0 ? 8 : -8), false, Moves, MoveNumber);MoveNumber+=4;} //adds all the promo moves
                 SinglePushPawns.ClearBit(startSquare); //need to change this to use the bitboard class, will make it all easer TODO
             }
             while (DoublePushPawns.GetData() > 0) //while the bitboard isn't empty
             {
                 int startSquare = DoublePushPawns.LSB(); 
                 //no need to check for promotions of double pawn pushes
-                MoveList[MoveNumber] = new Move(startSquare, startSquare + (board.ColourToMove == 0 ? 16 : -16), 0b0001);
+                Moves[MoveNumber] = new Move(startSquare, startSquare + (board.ColourToMove == 0 ? 16 : -16), 0b0001);
                 MoveNumber++;
                 DoublePushPawns.ClearBit(startSquare); //need to change this to use the bitboard class, will make it all easer TODO
             }
@@ -118,15 +182,15 @@ namespace ChessEngine
                     int target = Attacks.LSB();
                     if ((target < 56 && board.ColourToMove == 0) || (target > 7 && board.ColourToMove == 1)) //checks it isn't a promotion pawn move
                     {   
-                        MoveList[MoveNumber] = (new Move(startSquare, target, 0b0100)); //flag for capture
+                        Moves[MoveNumber] = (new Move(startSquare, target, 0b0100)); //flag for capture
                         MoveNumber++;
                     }
-                    else {AddPromotions(startSquare, target, true, MoveList, MoveNumber);MoveNumber+=4;} //adds all the promo moves
+                    else {AddPromotions(startSquare, target, true, Moves, MoveNumber);MoveNumber+=4;} //adds all the promo moves
                     Attacks.ClearBit(target);
                 }
                 PawnCaptures.ClearBit(startSquare);
             }
-            return MoveList;
+            return MoveNumber;
         }
 
         private static void AddPromotions(int start, int target, bool capture, Move[] MoveList, int MoveNumber)
@@ -174,6 +238,7 @@ namespace ChessEngine
         }
         public void PrintMove()
         {
+            if (Data == 0) return;
             Console.WriteLine("data: " + Convert.ToString((long)Data, 2) + ", start: " + this.GetStart() + ", target: " + this.GetTarget() + ", flags: " + this.GetFlag());
         }
     }
