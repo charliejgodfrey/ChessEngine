@@ -2,8 +2,9 @@
 Trying to code a chess engine in c# 
 
 ## Current To-Do List
-- implement the bitmasking to extract relevent bits for sliding move generation
-- import magics for sliding piece move generation
+- combine all bitboards into one array and adjust code to still work after this change
+- ensure the piece being moved is stored in the Move class when moves are generated
+- create a MakeMove function that updates the board position given a legal move
 
 
 

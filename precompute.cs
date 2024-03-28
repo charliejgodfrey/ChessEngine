@@ -79,6 +79,7 @@ namespace ChessEngine
                 int rank = i / 8;
                 mask |= 0x7eUL << (8*rank); //for the rank
                 mask |= 0x0001010101010100UL << file; //for the file
+                mask &= ~(1UL << i);
                 RookMasks[i] =  mask;
             }
         }
@@ -146,7 +147,7 @@ namespace ChessEngine
 
         public static void LoadMagics() //loads the magics that i've previously computed using the magic.cs file - all magics are ones i have calculated
         {
-            RookMagics[0] = 36028944121626648;RookMagics[1] = 18015085705298116;RookMagics[2] = 72068726609952784;RookMagics[3] = 180148451869329408;
+            RookMagics[0] = 36039243991105536;RookMagics[1] = 18015085705298116;RookMagics[2] = 72068726609952784;RookMagics[3] = 180148451869329408;
             RookMagics[4] = 180146201299517824;RookMagics[5] =  72059810243215368;RookMagics[6] = 36030446588395776;RookMagics[7] = 36039936016695552;
             RookMagics[8] = 865957766395609088;RookMagics[9] = 70506204106752;RookMagics[10] = 140806216523776;RookMagics[11] = 162411199689916672;
             RookMagics[12] = 140771853598848;RookMagics[13] = 20267333270376516;RookMagics[14] = 576742235874328580;RookMagics[15] = 9147941038080896;
@@ -166,7 +167,7 @@ namespace ChessEngine
 
             //bishop magics
 
-            BishopMagics[0] = 21963878661390848;BishopMagics[1] = 571780458660864;BishopMagics[2] = 1130304429359104;BishopMagics[0] = 73187894139290112;
+            BishopMagics[0] = 21963878661390848;BishopMagics[1] = 571780458660864;BishopMagics[2] = 1130304429359104;BishopMagics[3] = 73187894139290112;
             BishopMagics[4] = 1129232801939456;BishopMagics[5] = 576746634990403840;BishopMagics[6] = 14641105728438272;BishopMagics[7] = 9029198363494400;
             BishopMagics[8] = 8933616002560;BishopMagics[9] = 2268850061568;BishopMagics[10] = 17609370126336;BishopMagics[11] = 6478339699113984;
             BishopMagics[12] = 71538049024000;BishopMagics[13] = 565157602264074;BishopMagics[14] =  2605844873625600;BishopMagics[15] = 15449005903872;
@@ -182,7 +183,7 @@ namespace ChessEngine
             BishopMagics[48] = 282643780407808;BishopMagics[49] = 576533354497835008;BishopMagics[50] = 565153280560128;BishopMagics[51] = 2251803068596224;
             BishopMagics[52] = 68753686560;BishopMagics[53] = 72075195619491904;BishopMagics[54] = 94578100456914944;BishopMagics[55] = 4505833063948320;
             BishopMagics[56] = 18730486743040;BishopMagics[57] = 324264672910901776;BishopMagics[58] = 18122159255750656;BishopMagics[59] = 18155548319023616;
-            BishopMagics[60] = 289503617328218624;BishopMagics[61] = 17583571200;BishopMagics[62] = 11003777778690;BishopMagics[0] = 54046554394264096;
+            BishopMagics[60] = 289503617328218624;BishopMagics[61] = 17583571200;BishopMagics[62] = 11003777778690;BishopMagics[63] = 54046554394264096;
 
             for (int i = 0; i < 64; i++) //test all the magics to create the actual table of attacks
             {
