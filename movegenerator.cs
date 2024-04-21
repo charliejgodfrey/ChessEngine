@@ -17,7 +17,8 @@ namespace ChessEngine
             MoveNumber = GenerateBishopMoves(board, Moves, MoveNumber);
             MoveNumber = GenerateQueenMoves(board, Moves, MoveNumber);
             MoveNumber = GeneratePawnMoves(board, Moves, MoveNumber);
-            MoveNumber = GenerateKingMoves(board, Moves, MoveNumber);
+            //MoveNumber = GenerateKingMoves(board, Moves, MoveNumber); //PROBLEM WITH THIS FUNCTION WHEN THERE IS NO KING!!!!!! WILL LOOK LIKE SOMETHING COMPLETELY UNRELATED
+            MoveNumber = GenerateKnightMoves(board, Moves, MoveNumber);
             return Moves;
         }
 
@@ -35,7 +36,7 @@ namespace ChessEngine
                 {
                     int target = QueenAttacks.LSB();
                     int flag = (board.ColourToMove == 0 && board.BlackPieces.IsBitSet(target)) || (board.ColourToMove == 1 && board.WhitePieces.IsBitSet(target)) ? 0b0100 : 0b0000; //pretty much just checks if it's a capture or not
-                    Moves[MoveNumber] = new Move(startSquare, target, flag, 0b101);
+                    Moves[MoveNumber] = new Move(startSquare, target, flag, 0b100);
                     MoveNumber++;
                     QueenAttacks.ClearBit(target);
                 }
@@ -113,7 +114,7 @@ namespace ChessEngine
             {
                 int target = Attacks.LSB();
                 int flag = (board.ColourToMove == 0 && board.BlackPieces.IsBitSet(target)) || (board.ColourToMove == 1 && board.WhitePieces.IsBitSet(target)) ? 0b0100 : 0b0000;
-                Moves[MoveNumber] = new Move(KingSquare, target, flag, 0b110);
+                Moves[MoveNumber] = new Move(KingSquare, target, flag, 0b101);
                 MoveNumber++;
                 Attacks.ClearBit(target);
             }
@@ -164,23 +165,44 @@ namespace ChessEngine
                 DoublePushPawns.ClearBit(startSquare); //need to change this to use the bitboard class, will make it all easer TODO
             }
 
-            Bitboard PawnCaptures = new Bitboard((board.ColourToMove == 0 ? board.WhitePawns.GetData() : board.BlackPawns.GetData()));
-            while (PawnCaptures.GetData() > 0) //this is all about the pawn captures that are available
+            //this is for all the diagonal capturing moves ADD EN PASSANT
+            
+            Bitboard EastCapture;
+            Bitboard WestCapture;
+            if (board.ColourToMove == 0) //turn is white
             {
-                int startSquare = PawnCaptures.LSB();
-                Bitboard Attacks = new Bitboard((board.ColourToMove == 0 ? PreComputeData.WhitePawnAttackBitboards[startSquare].GetData() & board.BlackPieces.GetData() : PreComputeData.BlackPawnAttackBitboards[startSquare].GetData() & board.WhitePieces.GetData()));
-                while (Attacks.GetData() > 0) //sequentially adds the corresponding move of each attacked square
+                EastCapture = new Bitboard((board.WhitePawns.GetData() | 1UL << board.EnPassantSquare) & (board.BlackPieces.GetData() >>9) & 0x7F7F7F7F7F7F7F7F); //this essentially checks there is a piece that can be captured and accounts for overflow stuff
+                WestCapture = new Bitboard((board.WhitePawns.GetData() | 1UL << board.EnPassantSquare) & (board.BlackPieces.GetData() >>7) & 0xF7F7F7F7F7F7F7F7); //does the same thing for the other direction
+            } else { //might be the other way round, REMOVE WHEN FIXED
+                WestCapture = new Bitboard((board.BlackPawns.GetData() | 1UL << board.EnPassantSquare) & (board.WhitePieces.GetData() <<9) & 0x7F7F7F7F7F7F7F7F); //this essentially checks there is a piece that can be captured and accounts for overflow stuff
+                EastCapture = new Bitboard((board.BlackPawns.GetData() | 1UL << board.EnPassantSquare) & (board.WhitePieces.GetData() <<7) & 0xF7F7F7F7F7F7F7F7); //does the same thing for the other direction
+            }
+
+            while (EastCapture.GetData() > 0) //for all the capturing pawns to the right
+            {
+                int startSquare = EastCapture.LSB();
+                if (board.ColourToMove == 0 ? startSquare < 56 : startSquare >= 8) //isn't a promotion
                 {
-                    int target = Attacks.LSB();
-                    if ((target < 56 && board.ColourToMove == 0) || (target > 7 && board.ColourToMove == 1)) //checks it isn't a promotion pawn move
-                    {   
-                        Moves[MoveNumber] = (new Move(startSquare, target, 0b0100, 0b000)); //flag for capture
-                        MoveNumber++;
-                    }
-                    else {AddPromotions(startSquare, target, true, Moves, MoveNumber);MoveNumber+=4;} //adds all the promo moves
-                    Attacks.ClearBit(target);
+                    Moves[MoveNumber] = new Move(startSquare, startSquare + 1 + (board.ColourToMove == 0 ? 8 : -8), 0b0100, 0b000);
+                    MoveNumber++;
+                } else {
+                    AddPromotions(startSquare, startSquare + 1 + board.ColourToMove == 0 ? 8 : -8, true, Moves, MoveNumber);
+                    MoveNumber += 4;
                 }
-                PawnCaptures.ClearBit(startSquare);
+                EastCapture.ClearBit(startSquare);
+            }
+            while (WestCapture.GetData() > 0) //for all the capturing pawns to the left
+            {
+                int startSquare = WestCapture.LSB();
+                if (board.ColourToMove == 0 ? startSquare < 56 : startSquare >= 8) //isn't a promotion
+                {
+                    Moves[MoveNumber] = new Move(startSquare, startSquare - 1 + (board.ColourToMove == 0 ? 8 : -8), 0b0100, 0b000);
+                    MoveNumber++;
+                } else {
+                    AddPromotions(startSquare, startSquare - 1 + (board.ColourToMove == 0 ? 8 : -8), true, Moves, MoveNumber);
+                    MoveNumber += 4;
+                }
+                WestCapture.ClearBit(startSquare);
             }
             return MoveNumber;
         }
@@ -209,7 +231,7 @@ namespace ChessEngine
         int Data = 0;
         public Move(int start, int target, int flags, int piece)
         {
-            Data = (start | (target << 6) | (flags << 12) | (piece << 16)); //the first 6 bits are the start square, the next 6 the target square then the next 4 are for flags (castling, enpassant)
+            Data = (start | (target << 6) | (flags << 12) | (piece << 16) | (piece << 19)); //the first 6 bits are the start square, the next 6 the target square then the next 4 are for flags (castling, enpassant)
         }
 
         public int GetStart()
@@ -226,7 +248,12 @@ namespace ChessEngine
         }
         public int GetPiece()
         {
-            return (Data >> 16);
+            return (Data >> 16) & 7;
+        }
+        public int GetCapture() 
+        {
+            Console.WriteLine("fetched the capturing piece");
+            return (Data >> 19);
         }
         public int GetData()
         {
@@ -235,7 +262,7 @@ namespace ChessEngine
         public void PrintMove()
         {
             if (Data == 0) return;
-            Console.WriteLine("data: " + Convert.ToString((long)Data, 2) + ", start: " + this.GetStart() + ", target: " + this.GetTarget() + ", flags: " + this.GetFlag());
+            Console.WriteLine("data: " + Convert.ToString((long)Data, 2) + ", start: " + this.GetStart() + ", target: " + this.GetTarget() + ", flags: " + this.GetFlag() + ", piece: " + this.GetPiece());
         }
     }
     // [000] 3bits for actual piece

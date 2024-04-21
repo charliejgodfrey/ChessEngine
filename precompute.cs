@@ -26,7 +26,6 @@ namespace ChessEngine
             PreComputeRookMasks();
             PreComputeBishopMasks();
             LoadMagics();
-            //ComputeMagics(); //loads the fixed magic numbers I've previously found
         }
 
         public static void ComputeMagics() //recalculates a set of fresh magic numbers 
@@ -176,7 +175,7 @@ namespace ChessEngine
             BishopMagics[24] = 9308484099704832;BishopMagics[25] = 2256197894803968;BishopMagics[26] = 158330781704704;BishopMagics[27] = 39582422859784;
             BishopMagics[28] = 57243325170688;BishopMagics[29] = 2251937286324480;BishopMagics[30] = 45744081795617792;BishopMagics[31] = 281613506217984;
 
-            BishopMagics[32] = 4508015392741376;BishopMagics[33] = 1130315150135296;BishopMagics[34] = 563508300218400;BishopMagics[34] = 1100585632768;
+            BishopMagics[32] = 4508015392741376;BishopMagics[33] = 580559520794624;BishopMagics[34] = 563508300218400;BishopMagics[34] = 1100585632768;
             BishopMagics[36] = 2251954432524544;BishopMagics[37] = 9011600533129216;BishopMagics[38] = 27327279176745280;BishopMagics[39] = 564332937412736;
             BishopMagics[40] = 10151808309674112;BishopMagics[41] = 571763259868160;BishopMagics[42] = 92359580772352;BishopMagics[43] = 283602060160;
             BishopMagics[44] = 288265569256358912;BishopMagics[45] = 567382393241632;BishopMagics[46] = 37719855096464896;BishopMagics[47] = 4510241796391168;

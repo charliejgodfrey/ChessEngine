@@ -1,13 +1,16 @@
 //this is the file where all the code for the board representation is going to be managed from
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
 namespace ChessEngine 
 {
     public class Board
     { 
-        public const string DefaultFEN = "rnbqkbnr/pppppppp/8/8/8/P7/1PPPPPPP/RNBQKBNR"; //this is the default chess starting position
+        public const string DefaultFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"; //this is the default chess starting position
 
-        public int ColourToMove = 0; // 0 for white 1 for black
+        public int ColourToMove = 1; // 0 for white 1 for black
         public int EnPassantSquare;
         public int MoveNumber;
         public bool WhiteShortCastle;
@@ -35,13 +38,16 @@ namespace ChessEngine
         public Bitboard OccupiedSquares = new Bitboard();
         public Bitboard[] Pieces = new Bitboard[12];
 
-        public Board(string Fen = DefaultFEN) 
+        public Board(string Fen = DefaultFEN, bool isCopy = false) 
         {
+            if (!isCopy) 
+            {
             this.UploadFEN(Fen);
             BlackPieces = new Bitboard(BlackPawns.GetData() | BlackKnights.GetData() | BlackBishops.GetData() | BlackRooks.GetData() | BlackQueens.GetData() | BlackKing.GetData());
             WhitePieces = new Bitboard(WhitePawns.GetData() | WhiteKnights.GetData() | WhiteBishops.GetData() | WhiteRooks.GetData() | WhiteQueens.GetData() | WhiteKing.GetData());
             OccupiedSquares = new Bitboard(BlackPieces.GetData() | WhitePieces.GetData());
             Pieces = [WhitePawns, WhiteKnights, WhiteBishops, WhiteRooks, WhiteQueens, WhiteKing, BlackPawns, BlackKnights, BlackBishops, BlackRooks, BlackQueens, BlackKing];
+            }
         }
 
         public void MakeMove(Move move) 
@@ -49,6 +55,7 @@ namespace ChessEngine
             int start = move.GetStart();
             int target = move.GetTarget();
             int piece = move.GetPiece();
+            int flag = move.GetFlag();
             OccupiedSquares.ClearBit(start); //adjusts the occupied bitboard
             OccupiedSquares.SetBit(target);
 
@@ -79,7 +86,60 @@ namespace ChessEngine
                     Pieces[i].ClearBit(target);
                 }
             }
-            //ColourToMove = (ColourToMove == 0 ? 1 : 0);
+
+            //other checks:
+            if (flag == 0b0001) //double pawn push
+            {
+                EnPassantSquare = target + (ColourToMove == 0 ? 8 : -8); //the offset means that the square is referring to where an enpassanting pawn would move to - not where the piece is being captured
+            }
+            if (flag == 0b0101) //en passant capture
+            {
+                //ColourToMove == 0 ? BlackPawns.ClearBit(target - 8) : WhitePawns.ClearBit(target + 8);
+            }
+            if (flag >= 0b1000) //promotion
+            {
+                Pieces[(flag & 0b0011) + (ColourToMove == 0 ? 1 : 7)].SetBit(target); //promotion piece bitboard
+                Pieces[(ColourToMove == 0 ? 1 : 7)].ClearBit(target); //pawn bitboard
+            }
+            ColourToMove = (ColourToMove == 0 ? 1 : 0);
+        }
+
+        public void RefreshBitboardConfiguration()
+        {
+            BlackPieces = new Bitboard(BlackPawns.GetData() | BlackKnights.GetData() | BlackBishops.GetData() | BlackRooks.GetData() | BlackQueens.GetData() | BlackKing.GetData());
+            WhitePieces = new Bitboard(WhitePawns.GetData() | WhiteKnights.GetData() | WhiteBishops.GetData() | WhiteRooks.GetData() | WhiteQueens.GetData() | WhiteKing.GetData());
+            OccupiedSquares = new Bitboard(BlackPieces.GetData() | WhitePieces.GetData());
+            Pieces = [WhitePawns, WhiteKnights, WhiteBishops, WhiteRooks, WhiteQueens, WhiteKing, BlackPawns, BlackKnights, BlackBishops, BlackRooks, BlackQueens, BlackKing];
+        }
+
+        public Board Copy()
+        {
+            Board board = new Board(DefaultFEN, true);
+            board.ColourToMove = this.ColourToMove;
+            board.EnPassantSquare = this.EnPassantSquare;
+            board.MoveNumber = this.MoveNumber;
+            board.WhiteShortCastle = this.WhiteShortCastle;
+            board.WhiteLongCastle = this.WhiteLongCastle;
+            board.BlackShortCastle = this.BlackShortCastle;
+            board.BlackLongCastle = this.BlackLongCastle;
+
+            board.WhitePawns.SetData(this.WhitePawns.GetData());
+            board.WhiteKnights.SetData(this.WhiteKnights.GetData());
+            board.WhiteBishops.SetData(this.WhiteBishops.GetData());
+            board.WhiteRooks.SetData(this.WhiteRooks.GetData());
+            board.WhiteQueens.SetData(this.WhiteQueens.GetData());
+            board.WhiteKing.SetData(this.WhiteKing.GetData());
+
+            board.BlackPawns.SetData(this.BlackPawns.GetData());
+            board.BlackKnights.SetData(this.BlackKnights.GetData());
+            board.BlackBishops.SetData(this.BlackBishops.GetData());
+            board.BlackRooks.SetData(this.BlackRooks.GetData());
+            board.BlackQueens.SetData(this.BlackQueens.GetData());
+            board.BlackKing.SetData(this.BlackKing.GetData());
+            
+            board.RefreshBitboardConfiguration();
+
+            return board;
         }
 
         public void UploadFEN(string FEN)
@@ -145,6 +205,7 @@ namespace ChessEngine
 
         public void PrintBoard()
         {
+            Console.WriteLine("================");
             string BoardRepresentation = ""; //initial state to print
             for (int i = 0; i < 64; i++)
             {
@@ -170,6 +231,7 @@ namespace ChessEngine
             Console.WriteLine(BoardRepresentation.Substring(32,16));
             Console.WriteLine(BoardRepresentation.Substring(16, 16));
             Console.WriteLine(BoardRepresentation.Substring(0,16));
+            Console.WriteLine("================");
         }
     }
 }

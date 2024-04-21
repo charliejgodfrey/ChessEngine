@@ -2,9 +2,11 @@
 Trying to code a chess engine in c# 
 
 ## Current To-Do List
-- combine all bitboards into one array and adjust code to still work after this change
-- ensure the piece being moved is stored in the Move class when moves are generated
-- create a MakeMove function that updates the board position given a legal move
+- add the piece being captured to the move structure
+- create an unmake move function
+- create a filter for checking legality of moves
+- test en passant works
+- add castling
 
 
 
