@@ -2,8 +2,6 @@
 Trying to code a chess engine in c# 
 
 ## Current To-Do List
-- add the piece being captured to the move structure
-- create an unmake move function
 - create a filter for checking legality of moves
 - test en passant works
 - add castling

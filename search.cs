@@ -4,7 +4,11 @@ namespace ChessEngine
     {
         public static int perf(int depth, Board board)
         {
-            //Board board = RootBoard.Copy();
+            // if (board.WhiteKing.GetData() == 0 || board.BlackKing.GetData() == 0) //check if the current game state is terminal
+            // {
+            //     //Console.WriteLine("terminal state found 9");
+            //     return 0;
+            // }
             if (depth == 0)
             {
                 return 1;
@@ -14,8 +18,9 @@ namespace ChessEngine
             Move[] moves = MoveGenerator.GenerateMoves(board);
             for (int i = 0; i < 218; i++) //all move thingys have length 218
             {
-                if (moves[i].GetData() == 0) //done all non empty moves
+                if (moves[i].GetData() == 0 || MoveGenerator.CheckLegal(RetraceBoard, moves[i]) == false) //done all non empty moves //!MoveGenerator.CheckLegal(board, moves[i])
                 {
+                    //moves[i].PrintMove();
                     break;
                 }
 

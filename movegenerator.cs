@@ -17,9 +17,46 @@ namespace ChessEngine
             MoveNumber = GenerateBishopMoves(board, Moves, MoveNumber);
             MoveNumber = GenerateQueenMoves(board, Moves, MoveNumber);
             MoveNumber = GeneratePawnMoves(board, Moves, MoveNumber);
-            //MoveNumber = GenerateKingMoves(board, Moves, MoveNumber); //PROBLEM WITH THIS FUNCTION WHEN THERE IS NO KING!!!!!! WILL LOOK LIKE SOMETHING COMPLETELY UNRELATED
+            MoveNumber = GenerateKingMoves(board, Moves, MoveNumber); //PROBLEM WITH THIS FUNCTION WHEN THERE IS NO KING!!!!!! WILL LOOK LIKE SOMETHING COMPLETELY UNRELATED
             MoveNumber = GenerateKnightMoves(board, Moves, MoveNumber);
             return Moves;
+        }
+
+        public static bool CheckLegal(Board board, Move Move) 
+        {
+            Board TestBoard = board.Copy();
+            TestBoard.MakeMove(Move);
+            int ColourAdd = TestBoard.ColourToMove == 1 ? 6 : 0;
+            int KingSquare = (TestBoard.ColourToMove == 1 ? TestBoard.WhiteKing.LSB() : TestBoard.BlackKing.LSB());
+            if (KingSquare < 0 || KingSquare > 63) Console.WriteLine("King Square l31: " + KingSquare);
+            Bitboard KnightAttacks = PreComputeData.KnightAttackBitboards[KingSquare]; // where a knight could attack the king from
+            if ((KnightAttacks.GetData() & TestBoard.Pieces[1 + ColourAdd].GetData()) != 0)
+            {
+                return false;
+            }
+
+            Bitboard BishopAttacks = GenerateBishopAttacks(TestBoard, KingSquare);
+            if ((BishopAttacks.GetData() & TestBoard.Pieces[2 + ColourAdd].GetData()) != 0)
+            {
+                return false;
+            }
+
+            Bitboard RookAttacks = GenerateRookAttacks(TestBoard, KingSquare);
+            if ((RookAttacks.GetData() & TestBoard.Pieces[3 + ColourAdd].GetData()) != 0) 
+            {
+                return false;
+            }
+
+            if (((RookAttacks.GetData() | BishopAttacks.GetData()) & TestBoard.Pieces[4 + ColourAdd].GetData()) != 0) 
+            {
+                return false;
+            }
+
+            if (((TestBoard.Pieces[ColourAdd].IsBitSet(KingSquare + 1 + (TestBoard.ColourToMove == 1 ? 8 : -8))) && KingSquare % 8 != 7) || ((TestBoard.Pieces[ColourAdd].IsBitSet(KingSquare - 1 + (TestBoard.ColourToMove == 1 ? 8 : -8))) && KingSquare % 8 != 0)) // checking if either of the attackable squares of the king from pawns are occupied
+            {
+                return false;
+            }
+            return true;
         }
 
         public static int GenerateQueenMoves(Board board, Move[] Moves, int MoveNumber)
@@ -141,7 +178,7 @@ namespace ChessEngine
             return MoveNumber;
         }
 
-        public static int GeneratePawnMoves (Board board, Move[] Moves, int MoveNumber) //need to add enPassant
+        public static int GeneratePawnMoves (Board board, Move[] Moves, int MoveNumber)
         {
             Bitboard SinglePushPawns = new Bitboard((board.ColourToMove == 0) ? (~board.OccupiedSquares.GetData() >> 8) & board.WhitePawns.GetData() : (~board.OccupiedSquares.GetData() << 8) & board.BlackPawns.GetData());
             Bitboard DoublePushPawns = new Bitboard(board.ColourToMove == 0 ? (~board.OccupiedSquares.GetData() >> 16 & board.WhitePawns.GetData() & SinglePushPawns.GetData() & 0xff00) : (~board.OccupiedSquares.GetData() << 16 & board.BlackPawns.GetData() & SinglePushPawns.GetData() & 0x00ff000000000000));
@@ -165,18 +202,19 @@ namespace ChessEngine
                 DoublePushPawns.ClearBit(startSquare); //need to change this to use the bitboard class, will make it all easer TODO
             }
 
-            //this is for all the diagonal capturing moves ADD EN PASSANT
+            //this is for all the diagonal capturing moves
             
             Bitboard EastCapture;
             Bitboard WestCapture;
             if (board.ColourToMove == 0) //turn is white
             {
                 EastCapture = new Bitboard((board.WhitePawns.GetData() | 1UL << board.EnPassantSquare) & (board.BlackPieces.GetData() >>9) & 0x7F7F7F7F7F7F7F7F); //this essentially checks there is a piece that can be captured and accounts for overflow stuff
-                WestCapture = new Bitboard((board.WhitePawns.GetData() | 1UL << board.EnPassantSquare) & (board.BlackPieces.GetData() >>7) & 0xF7F7F7F7F7F7F7F7); //does the same thing for the other direction
+                WestCapture = new Bitboard((board.WhitePawns.GetData() | 1UL << board.EnPassantSquare) & (board.BlackPieces.GetData() >>7) & 0xFEFEFEFEFEFEFEFE); //does the same thing for the other direction
             } else { //might be the other way round, REMOVE WHEN FIXED
                 WestCapture = new Bitboard((board.BlackPawns.GetData() | 1UL << board.EnPassantSquare) & (board.WhitePieces.GetData() <<9) & 0x7F7F7F7F7F7F7F7F); //this essentially checks there is a piece that can be captured and accounts for overflow stuff
-                EastCapture = new Bitboard((board.BlackPawns.GetData() | 1UL << board.EnPassantSquare) & (board.WhitePieces.GetData() <<7) & 0xF7F7F7F7F7F7F7F7); //does the same thing for the other direction
+                EastCapture = new Bitboard((board.BlackPawns.GetData() | 1UL << board.EnPassantSquare) & (board.WhitePieces.GetData() <<7) & 0xFEFEFEFEFEFEFEFE); //does the same thing for the other direction
             }
+            //WestCapture.PrintData();
 
             while (EastCapture.GetData() > 0) //for all the capturing pawns to the right
             {
@@ -194,7 +232,7 @@ namespace ChessEngine
             while (WestCapture.GetData() > 0) //for all the capturing pawns to the left
             {
                 int startSquare = WestCapture.LSB();
-                if (board.ColourToMove == 0 ? startSquare < 56 : startSquare >= 8) //isn't a promotion
+                if (board.ColourToMove == 0 ? startSquare < 48 : startSquare >= 16) //isn't a promotion
                 {
                     Moves[MoveNumber] = new Move(startSquare, startSquare - 1 + (board.ColourToMove == 0 ? 8 : -8), 0b0100, 0b000);
                     MoveNumber++;
