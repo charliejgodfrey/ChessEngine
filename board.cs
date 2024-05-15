@@ -10,13 +10,13 @@ namespace ChessEngine
     { 
         public const string DefaultFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"; //this is the default chess starting position
 
-        public int ColourToMove = 1; // 0 for white 1 for black
+        public int ColourToMove = 0; // 0 for white 1 for black
         public int EnPassantSquare;
         public int MoveNumber;
-        public bool WhiteShortCastle;
-        public bool WhiteLongCastle;
-        public bool BlackShortCastle;
-        public bool BlackLongCastle;
+        public bool WhiteShortCastle = true;
+        public bool WhiteLongCastle = true;
+        public bool BlackShortCastle = true;
+        public bool BlackLongCastle = true;
 
         //bitboards
         public Bitboard WhitePawns = new Bitboard();
@@ -52,6 +52,12 @@ namespace ChessEngine
 
         public void MakeMove(Move move) 
         {
+            if (move.GetCastle() != 0)
+            {
+                this.Castle(move.GetCastle());
+                ColourToMove = (ColourToMove == 0 ? 1 : 0);
+                return;
+            }
             int start = move.GetStart();
             int target = move.GetTarget();
             int piece = move.GetPiece();
@@ -102,6 +108,46 @@ namespace ChessEngine
                 Pieces[(ColourToMove == 0 ? 1 : 7)].ClearBit(target); //pawn bitboard
             }
             ColourToMove = (ColourToMove == 0 ? 1 : 0);
+        }
+
+        public void Castle(int type)
+        {
+            if (type == 1 && this.ColourToMove == 0) //short castle for white
+            {
+                this.WhiteKing.SetData(0x40UL);
+                this.OccupiedSquares.AND(~0x90UL);
+                this.WhitePieces.AND(~0x90UL);
+                this.WhiteRooks.ClearBit(7);
+                this.WhiteRooks.SetBit(5);
+                return;
+            }
+            if (type == 2 && this.ColourToMove == 0) //short castle for white
+            {
+                Console.WriteLine("castle");
+                this.WhiteKing.SetData(0x4UL);
+                this.OccupiedSquares.AND(~0x11UL);
+                this.WhitePieces.AND(~0x11UL);
+                this.WhiteRooks.ClearBit(0);
+                this.WhiteRooks.SetBit(3);
+            }
+            if (type == 1 && this.ColourToMove == 1) //short castle for black
+            {
+                this.BlackKing.SetData(0x4000000000000000UL);
+                this.OccupiedSquares.AND(~0x9000000000000000UL);
+                this.BlackPieces.AND(~0x9000000000000000UL);
+                this.BlackRooks.ClearBit(63);
+                this.BlackRooks.SetBit(61);
+                return;
+            }
+            if (type == 2 && this.ColourToMove == 1) //short castle for black
+            {
+                this.WhiteKing.SetData(0x400000000000000UL);
+                this.OccupiedSquares.AND(~0x1100000000000000UL);
+                this.WhitePieces.AND(~0x1100000000000000UL);
+                this.WhiteRooks.ClearBit(56);
+                this.WhiteRooks.SetBit(59);
+                return;
+            }
         }
 
         public void RefreshBitboardConfiguration()

@@ -17,8 +17,9 @@ namespace ChessEngine
             MoveNumber = GenerateBishopMoves(board, Moves, MoveNumber);
             MoveNumber = GenerateQueenMoves(board, Moves, MoveNumber);
             MoveNumber = GeneratePawnMoves(board, Moves, MoveNumber);
-            MoveNumber = GenerateKingMoves(board, Moves, MoveNumber); //PROBLEM WITH THIS FUNCTION WHEN THERE IS NO KING!!!!!! WILL LOOK LIKE SOMETHING COMPLETELY UNRELATED
+            MoveNumber = GenerateKingMoves(board, Moves, MoveNumber); 
             MoveNumber = GenerateKnightMoves(board, Moves, MoveNumber);
+            MoveNumber = CheckCastle(board, Moves, MoveNumber);
             return Moves;
         }
 
@@ -57,6 +58,31 @@ namespace ChessEngine
                 return false;
             }
             return true;
+        }
+
+        public static int CheckCastle(Board board, Move[] moves, int MoveNumber)
+        {
+            if (board.ColourToMove == 0 && ((board.OccupiedSquares.GetData() & 0x60) == 0) && board.WhiteShortCastle)
+            {
+                moves[MoveNumber] = new Move(0,0,0,0,1); //white short castle
+                MoveNumber++;
+            }
+            if (board.ColourToMove == 0 && ((board.OccupiedSquares.GetData() & 0xE) == 0) && board.WhiteLongCastle)
+            {
+                moves[MoveNumber] = new Move(0,0,0,0,2); //white long castle
+                MoveNumber++;
+            }
+            if (board.ColourToMove == 1 && ((board.OccupiedSquares.GetData() & 0x6000000000000000) == 0) && board.BlackShortCastle)
+            {
+                moves[MoveNumber] = new Move(0,0,0,0,1); //black short castle
+                MoveNumber++;
+            }
+            if (board.ColourToMove == 1 && ((board.OccupiedSquares.GetData() & 0x0000000000000070) == 0) && board.BlackLongCastle)
+            {
+                moves[MoveNumber] = new Move(0,0,0,0,2); //black long castle
+                MoveNumber++;
+            }
+            return MoveNumber;
         }
 
         public static int GenerateQueenMoves(Board board, Move[] Moves, int MoveNumber)
@@ -267,9 +293,10 @@ namespace ChessEngine
     public struct Move 
     {
         int Data = 0;
-        public Move(int start, int target, int flags, int piece)
+        public Move(int start, int target, int flags, int piece, int castle = 0)
         {
-            Data = (start | (target << 6) | (flags << 12) | (piece << 16) | (piece << 19)); //the first 6 bits are the start square, the next 6 the target square then the next 4 are for flags (castling, enpassant)
+            Data = (start | (target << 6) | (flags << 12) | (piece << 16) | (castle << 19)); //the first 6 bits are the start square, the next 6 the target square then the next 4 are for flags (castling, enpassant)
+
         }
 
         public int GetStart()
@@ -287,6 +314,10 @@ namespace ChessEngine
         public int GetPiece()
         {
             return (Data >> 16) & 7;
+        }
+        public int GetCastle()
+        {
+            return (Data >> 19) & 3;
         }
         public int GetCapture() 
         {

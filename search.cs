@@ -18,12 +18,10 @@ namespace ChessEngine
             Move[] moves = MoveGenerator.GenerateMoves(board);
             for (int i = 0; i < 218; i++) //all move thingys have length 218
             {
-                if (moves[i].GetData() == 0 || MoveGenerator.CheckLegal(RetraceBoard, moves[i]) == false) //done all non empty moves //!MoveGenerator.CheckLegal(board, moves[i])
+                if (moves[i].GetData() == 0 || MoveGenerator.CheckLegal(board, moves[i]) == false) //done all non empty moves //!MoveGenerator.CheckLegal(board, moves[i])
                 {
-                    //moves[i].PrintMove();
-                    break;
+                    continue;
                 }
-
                 board.MakeMove(moves[i]);
                 int posy = perf(depth - 1, board);
                 board = RetraceBoard.Copy();

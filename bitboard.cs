@@ -14,6 +14,14 @@ namespace ChessEngine
         {
             data = initialData; //allows for a predefined starting point for the bitboard
         }
+        public void AND(ulong mask)
+        {
+            data &= mask;
+        }
+        public void OR(ulong mask)
+        {
+            data |= mask;
+        }
 
         public void SetBit(int square) 
         {
