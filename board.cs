@@ -17,6 +17,7 @@ namespace ChessEngine
         public bool WhiteLongCastle = true;
         public bool BlackShortCastle = true;
         public bool BlackLongCastle = true;
+        public int[] PieceCount = new int[10];
 
         //bitboards
         public Bitboard WhitePawns = new Bitboard();
@@ -52,6 +53,11 @@ namespace ChessEngine
 
         public void MakeMove(Move move) 
         {
+            if (move.GetNullMove() == 1)
+            {
+                ColourToMove = (ColourToMove == 0 ? 1 : 0);
+                return;
+            }
             if (move.GetCastle() != 0)
             {
                 this.Castle(move.GetCastle());
@@ -123,7 +129,6 @@ namespace ChessEngine
             }
             if (type == 2 && this.ColourToMove == 0) //short castle for white
             {
-                Console.WriteLine("castle");
                 this.WhiteKing.SetData(0x4UL);
                 this.OccupiedSquares.AND(~0x11UL);
                 this.WhitePieces.AND(~0x11UL);
@@ -141,11 +146,11 @@ namespace ChessEngine
             }
             if (type == 2 && this.ColourToMove == 1) //short castle for black
             {
-                this.WhiteKing.SetData(0x400000000000000UL);
+                this.BlackKing.SetData(0x400000000000000UL);
                 this.OccupiedSquares.AND(~0x1100000000000000UL);
-                this.WhitePieces.AND(~0x1100000000000000UL);
-                this.WhiteRooks.ClearBit(56);
-                this.WhiteRooks.SetBit(59);
+                this.BlackPieces.AND(~0x1100000000000000UL);
+                this.BlackRooks.ClearBit(56);
+                this.BlackRooks.SetBit(59);
                 return;
             }
         }
@@ -206,36 +211,46 @@ namespace ChessEngine
                     switch (character) //lowercase for black, uppercase for white
                     {
                         case 'p':
+                            PieceCount[5]++;
                             BlackPawns.SetBit(currentSquare);
                             break;
                         case 'n':
+                            PieceCount[6]++;
                             BlackKnights.SetBit(currentSquare);
                             break;
                         case 'b':
+                            PieceCount[7]++;
                             BlackBishops.SetBit(currentSquare);
                             break;
                         case 'r':
+                            PieceCount[8]++;
                             BlackRooks.SetBit(currentSquare);
                             break;
                         case 'q':
+                            PieceCount[9]++;
                             BlackQueens.SetBit(currentSquare);
                             break;
                         case 'k':
                             BlackKing.SetBit(currentSquare);
                             break;
                         case 'P':
+                            PieceCount[0]++;
                             WhitePawns.SetBit(currentSquare);
                             break;
                         case 'N':
+                            PieceCount[1]++;
                             WhiteKnights.SetBit(currentSquare);
                             break;
                         case 'B':
+                            PieceCount[2]++;
                             WhiteBishops.SetBit(currentSquare);
                             break;
                         case 'R':
+                            PieceCount[3]++;
                             WhiteRooks.SetBit(currentSquare);
                             break;
                         case 'Q':
+                            PieceCount[4]++;
                             WhiteQueens.SetBit(currentSquare);
                             break;
                         case 'K':
@@ -247,6 +262,10 @@ namespace ChessEngine
                     currentSquare++;
                 }
             }
+            if (!WhiteKing.IsBitSet(3) || WhiteRooks.IsBitSet(0)) WhiteShortCastle = false;
+            if (!WhiteKing.IsBitSet(3) || WhiteRooks.IsBitSet(7)) WhiteLongCastle = false;
+            if (!WhiteKing.IsBitSet(59) || WhiteRooks.IsBitSet(56)) BlackShortCastle = false;
+            if (!WhiteKing.IsBitSet(59) || WhiteRooks.IsBitSet(63)) BlackLongCastle = false;
         }
 
         public void PrintBoard()

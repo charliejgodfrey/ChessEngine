@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Collections;
 
+
 namespace ChessEngine
 {
     public class Bitboard 
@@ -108,15 +109,7 @@ namespace ChessEngine
 
         public int ActiveBits() //counts the number of ones in a bit mask
         {
-            int Count = 0;
-            for (int i=0;i<64;i++)
-            {
-                if (this.IsBitSet(i))
-                {
-                    Count++;
-                }
-            }
-            return Count;
+            return BitOperations.PopCount(data);
         }
 
         public void PrintData()

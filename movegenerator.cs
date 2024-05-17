@@ -60,7 +60,7 @@ namespace ChessEngine
             return true;
         }
 
-        public static int CheckCastle(Board board, Move[] moves, int MoveNumber)
+        public static int CheckCastle(Board board, Move[] moves, int MoveNumber) // currently allows castling out of, and through check
         {
             if (board.ColourToMove == 0 && ((board.OccupiedSquares.GetData() & 0x60) == 0) && board.WhiteShortCastle)
             {
@@ -77,7 +77,7 @@ namespace ChessEngine
                 moves[MoveNumber] = new Move(0,0,0,0,1); //black short castle
                 MoveNumber++;
             }
-            if (board.ColourToMove == 1 && ((board.OccupiedSquares.GetData() & 0x0000000000000070) == 0) && board.BlackLongCastle)
+            if (board.ColourToMove == 1 && ((board.OccupiedSquares.GetData() & 0x7000000000000000) == 0) && board.BlackLongCastle)
             {
                 moves[MoveNumber] = new Move(0,0,0,0,2); //black long castle
                 MoveNumber++;
@@ -165,6 +165,7 @@ namespace ChessEngine
             ulong ReleventBits = board.OccupiedSquares.GetData() & mask;
             ulong index = ReleventBits * PreComputeData.BishopMagics[square];
             index = index >> (64 - Magic.BishopBits[square]);
+            //Console.WriteLine("index: " + index + " square: " + square);
             Bitboard Attacks = new Bitboard(PreComputeData.BishopAttacks[square, index].GetData());
             return Attacks;
         }
@@ -172,6 +173,8 @@ namespace ChessEngine
         public static int GenerateKingMoves(Board board, Move[] Moves, int MoveNumber)
         {
             int KingSquare = (board.ColourToMove == 0) ? board.WhiteKing.LSB() : board.BlackKing.LSB(); //gets the location of the king
+            if (KingSquare > 63 || KingSquare < 0){ Console.WriteLine("king index is out of bounds: " + KingSquare);
+            board.PrintBoard();}
             Bitboard Attacks = new Bitboard(PreComputeData.KingAttackBitboards[KingSquare].GetData() & (board.ColourToMove == 0 ? ~board.WhitePieces.GetData() : ~board.BlackPieces.GetData()));
             while (Attacks.GetData() > 0)
             {
@@ -293,12 +296,15 @@ namespace ChessEngine
     public struct Move 
     {
         int Data = 0;
-        public Move(int start, int target, int flags, int piece, int castle = 0)
+        public Move(int start, int target, int flags, int piece, int castle = 0, int nullMove = 0)
         {
-            Data = (start | (target << 6) | (flags << 12) | (piece << 16) | (castle << 19)); //the first 6 bits are the start square, the next 6 the target square then the next 4 are for flags (castling, enpassant)
+            Data = (start | (target << 6) | (flags << 12) | (piece << 16) | (castle << 19) | (nullMove << 20)); //the first 6 bits are the start square, the next 6 the target square then the next 4 are for flags (castling, enpassant)
 
         }
-
+        public int GetNullMove()
+        {
+            return (Data >> 20);
+        }
         public int GetStart()
         {
             return Data & 63;
