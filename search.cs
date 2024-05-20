@@ -7,10 +7,12 @@ namespace ChessEngine
         {
             if (Depth == 0)
             {
-                return (new Move(), Evaluation.Material(board));
+                return (new Move(), QuiescienceSearch(board) * (board.ColourToMove == 0 ? 1 : -1));
             }
 
             Move[] Moves = MoveGenerator.GenerateMoves(board);
+            Evaluation.OrderMoves(board, Moves);
+            
             Board RetraceBoard = board.Copy();
             Move BestMove = NullMove;
 
@@ -22,12 +24,12 @@ namespace ChessEngine
 
             for (int i = 0; i < 218; i++)
             {
+                Board TemporaryBoard = board.Copy();
                 if (Moves[i].GetData() == 0) break; //done all moves
                 if (!MoveGenerator.CheckLegal(board, Moves[i])) continue; //illegal move so ignore
 
-                board.MakeMove(Moves[i]);
-                (Move TopMove, float Score) = AlphaBeta(board, Depth - 1, -Beta, -Alpha);
-                board = RetraceBoard.Copy();
+                TemporaryBoard.MakeMove(Moves[i]);
+                (Move TopMove, float Score) = AlphaBeta(TemporaryBoard, Depth - 1, -Beta, -Alpha);
                 float Eval = -Score; // good move for opponent is bad for us
                 if (Eval >= Beta) 
                 {
@@ -41,29 +43,58 @@ namespace ChessEngine
             }
             return (BestMove, Alpha);
         }
-        public static int perf(int depth, Board board)
+
+        public static float QuiescienceSearch(Board board, float Alpha = -1000000, float Beta = 1000000)
         {
-            // if (board.WhiteKing.GetData() == 0 || board.BlackKing.GetData() == 0) //check if the current game state is terminal
-            // {
-            //     //Console.WriteLine("terminal state found 9");
-            //     return 0;
-            // }
+            //float Eval = Evaluation.WeightedMaterial(board);
+            float Eval = board.Eval;
+            if (Eval >= Beta) 
+            {
+                return Beta;
+            }
+
+            Alpha = ((Alpha > Eval) ? Alpha : Eval);
+
+            Move[] moves = MoveGenerator.GenerateMoves(board); //can incorperate specialist function for only captures at some point
+
+            for (int i = 0; i < 218; i++)
+            {
+                if (!moves[i].IsCapture())
+                {
+                    continue;
+                }
+
+                Board TemporaryBoard = board.Copy();
+                TemporaryBoard.MakeMove(moves[i]);
+                Eval = -QuiescienceSearch(TemporaryBoard, -Beta, -Alpha);
+
+                if (Eval >= Beta)
+                {
+                    return Beta;
+                }
+                Alpha = ((Alpha > Eval) ? Alpha : Eval);
+            }
+            return Alpha;
+        }
+
+        public static int Perft(int depth, Board board)
+        {
             if (depth == 0)
             {
                 return 1;
             }
             int positions = 0;
-            Board RetraceBoard = board.Copy();
             Move[] moves = MoveGenerator.GenerateMoves(board);
             for (int i = 0; i < 218; i++) //all move thingys have length 218
             {
-                if (moves[i].GetData() == 0 || MoveGenerator.CheckLegal(board, moves[i]) == false) //done all non empty moves //!MoveGenerator.CheckLegal(board, moves[i])
+                Board TemporaryBoard = board.Copy();
+                if (moves[i].GetData() == 0) //done all non empty moves
                 {
-                    continue;
+                    break;
                 }
-                board.MakeMove(moves[i]);
-                int posy = perf(depth - 1, board);
-                board = RetraceBoard.Copy();
+                if (!MoveGenerator.CheckLegal(board, moves[i])) continue;
+                TemporaryBoard.MakeMove(moves[i]);
+                int posy = Perft(depth - 1, TemporaryBoard);
                 positions += posy;
             }
             return positions;

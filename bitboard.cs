@@ -115,6 +115,7 @@ namespace ChessEngine
         public void PrintData()
         {
             string StringOfBitboard = Convert.ToString((long)data, 2);
+            Console.WriteLine("================");
             while (StringOfBitboard.Length < 64)
             {
                 StringOfBitboard = "0" + StringOfBitboard;
@@ -124,6 +125,7 @@ namespace ChessEngine
             {
                 Console.WriteLine(new string(StringOfBitboard.Substring(i*16, 15).Reverse().ToArray())); //prints it line by line (has to be reversed for making sense)
             }
+            Console.WriteLine("================");
         }
     }   
 }
