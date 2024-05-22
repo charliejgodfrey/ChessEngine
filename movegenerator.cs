@@ -25,44 +25,50 @@ namespace ChessEngine
 
         public static bool CheckLegal(Board board, Move Move) 
         {
-            Board TestBoard = board.Copy();
-            TestBoard.MakeMove(Move);
-            int ColourAdd = TestBoard.ColourToMove == 1 ? 6 : 0;
-            int KingSquare = (TestBoard.ColourToMove == 1 ? TestBoard.WhiteKing.LSB() : TestBoard.BlackKing.LSB());
+            board.MakeMove(Move);
+            int ColourAdd = board.ColourToMove == 1 ? 6 : 0;
+            int KingSquare = (board.ColourToMove == 1 ? board.WhiteKing.LSB() : board.BlackKing.LSB());
             if (KingSquare < 0 || KingSquare > 63){ Console.WriteLine("King Square l31: " + KingSquare);
-            TestBoard.PrintBoard();TestBoard.WhiteKing.PrintData();Move.PrintMove();}
+            board.PrintBoard();board.WhiteKing.PrintData();Move.PrintMove();}
             Bitboard KnightAttacks = PreComputeData.KnightAttackBitboards[KingSquare]; // where a knight could attack the king from
-            if ((KnightAttacks.GetData() & TestBoard.Pieces[1 + ColourAdd].GetData()) != 0)
+            if ((KnightAttacks.GetData() & board.Pieces[1 + ColourAdd].GetData()) != 0)
             {
+                board.UnmakeMove(Move); 
                 return false;
             }
 
-            Bitboard BishopAttacks = GenerateBishopAttacks(TestBoard, KingSquare);
-            if ((BishopAttacks.GetData() & TestBoard.Pieces[2 + ColourAdd].GetData()) != 0)
+            Bitboard BishopAttacks = GenerateBishopAttacks(board, KingSquare);
+            if ((BishopAttacks.GetData() & board.Pieces[2 + ColourAdd].GetData()) != 0)
             {
+                board.UnmakeMove(Move); 
                 return false;
             }
 
-            Bitboard RookAttacks = GenerateRookAttacks(TestBoard, KingSquare);
-            if ((RookAttacks.GetData() & TestBoard.Pieces[3 + ColourAdd].GetData()) != 0) 
+            Bitboard RookAttacks = GenerateRookAttacks(board, KingSquare);
+            if ((RookAttacks.GetData() & board.Pieces[3 + ColourAdd].GetData()) != 0) 
             {
+                board.UnmakeMove(Move); 
                 return false;
             }
 
-            if (((RookAttacks.GetData() | BishopAttacks.GetData()) & TestBoard.Pieces[4 + ColourAdd].GetData()) != 0) 
+            if (((RookAttacks.GetData() | BishopAttacks.GetData()) & board.Pieces[4 + ColourAdd].GetData()) != 0) 
             {
+                board.UnmakeMove(Move); 
                 return false;
             }
 
-            if (((TestBoard.Pieces[ColourAdd].IsBitSet(KingSquare + 1 + (TestBoard.ColourToMove == 1 ? 8 : -8))) && KingSquare % 8 != 7) || ((TestBoard.Pieces[ColourAdd].IsBitSet(KingSquare - 1 + (TestBoard.ColourToMove == 1 ? 8 : -8))) && KingSquare % 8 != 0)) // checking if either of the attackable squares of the king from pawns are occupied
+            if (((board.Pieces[ColourAdd].IsBitSet(KingSquare + 1 + (board.ColourToMove == 1 ? 8 : -8))) && KingSquare % 8 != 7) || ((board.Pieces[ColourAdd].IsBitSet(KingSquare - 1 + (board.ColourToMove == 1 ? 8 : -8))) && KingSquare % 8 != 0)) // checking if either of the attackable squares of the king from pawns are occupied
             {
+                board.UnmakeMove(Move); 
                 return false;
             }
 
-            if ((PreComputeData.KingAttackBitboards[KingSquare].GetData() & TestBoard.Pieces[5+ ColourAdd].GetData()) != 0)
+            if ((PreComputeData.KingAttackBitboards[KingSquare].GetData() & board.Pieces[5+ ColourAdd].GetData()) != 0)
             {
+                board.UnmakeMove(Move); 
                 return false;
             }
+            board.UnmakeMove(Move); 
             return true;
         }
 

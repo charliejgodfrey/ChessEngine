@@ -12,6 +12,7 @@ namespace ChessEngine
             Move[] PrincipleVariation = new Move[maxDepth];
             for (int depth = 1; depth <= maxDepth; depth++)
             {
+                Console.WriteLine("Depth Currently Searching..." + depth);
                 (BestMove, Eval, Move[] PV) = AlphaBeta(board, depth, TTable);
                 PrincipleVariation = PV;
             }
@@ -34,6 +35,7 @@ namespace ChessEngine
                 {
                     if (entry.Depth >= Depth) Alpha = ((Alpha > entry.Evaluation) ? Alpha : entry.Evaluation);
                     HashMove = entry.BestMove;
+                    HashMove.PrintMove();
                 }
                 else if (entry.NodeType == 2)
                 {
@@ -67,12 +69,13 @@ namespace ChessEngine
             Move[] PrincipleVariation = new Move[100];
             for (int i = 0; i < 218; i++)
             {
-                Board TemporaryBoard = board.Copy();
+                //Board TemporaryBoard = board.Copy();
                 if (Moves[i].GetData() == 0) break; //done all moves
                 if (!MoveGenerator.CheckLegal(board, Moves[i])) continue; //illegal move so ignore
 
-                TemporaryBoard.MakeMove(Moves[i]);
-                (Move TopMove, float Score, Move[] PV) = AlphaBeta(TemporaryBoard, Depth - 1, TTable, -Beta, -Alpha);
+                board.MakeMove(Moves[i]);
+                (Move TopMove, float Score, Move[] PV) = AlphaBeta(board, Depth - 1, TTable, -Beta, -Alpha);
+                board.UnmakeMove(Moves[i]);
                 float Eval = -Score; // good move for opponent is bad for us
                 if (Eval > maxEval)
                 {
@@ -109,10 +112,10 @@ namespace ChessEngine
                     continue;
                 }
 
-                Board TemporaryBoard = board.Copy();
-                TemporaryBoard.MakeMove(moves[i]);
-                Eval = -QuiescienceSearch(TemporaryBoard, -Beta, -Alpha);
-
+                //Board TemporaryBoard = board.Copy();
+                board.MakeMove(moves[i]);
+                Eval = -QuiescienceSearch(board, -Beta, -Alpha);
+                board.UnmakeMove(moves[i]);
                 if (Eval >= Beta)
                 {
                     return Beta;
@@ -132,14 +135,15 @@ namespace ChessEngine
             Move[] moves = MoveGenerator.GenerateMoves(board);
             for (int i = 0; i < 218; i++) //all move thingys have length 218
             {
-                Board TemporaryBoard = board.Copy();
+                //Board TemporaryBoard = board.Copy();
                 if (moves[i].GetData() == 0) //done all non empty moves
                 {
                     break;
                 }
                 if (!MoveGenerator.CheckLegal(board, moves[i])) continue;
-                TemporaryBoard.MakeMove(moves[i]);
-                int posy = Perft(depth - 1, TemporaryBoard);
+                board.MakeMove(moves[i]);
+                int posy = Perft(depth - 1, board);
+                board.UnmakeMove(moves[i]);
                 positions += posy;
             }
             return positions;

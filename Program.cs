@@ -13,22 +13,19 @@ namespace ChessEngine
             PreComputeData.InitializeAttackBitboards();
             TranspositionTable TTable = new TranspositionTable();
             board.Eval = Evaluation.WeightedMaterial(board);
-            // Console.WriteLine("perft 3: " + Search.Perft(3, board));
-            // Console.WriteLine("perft 4: " + Search.Perft(4, board));
-            // Console.WriteLine("perft 5: " + Search.Perft(3, board));
+
             while (true)
             {
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 6, TTable);
-                board.MakeMove(BestMove);
-                board.PrintBoard();
-                BestMove.PrintMove();
-
                 Move move = GetUserMove(board);
-                //PrintMoves(board);
                 board.MakeMove(move);
                 move.PrintMove();
                 board.PrintBoard();
 
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 7, TTable);
+                board.MakeMove(BestMove);
+                board.PrintBoard();
+                BestMove.PrintMove();
+                Console.WriteLine("Computer Evaluation Assessment: " + (Eval/100));
             }
         }
 
@@ -37,7 +34,7 @@ namespace ChessEngine
             Move[] moves = MoveGenerator.GenerateMoves(board);
             for (int i = 0; i < 218; i++)
             {
-                if (moves[i].GetData() == 0) break;
+                if (moves[i].GetNullMove() == 1) break;
                 moves[i].PrintMove();
             }
         }

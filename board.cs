@@ -143,6 +143,47 @@ namespace ChessEngine
             ColourToMove = (ColourToMove == 0 ? 1 : 0);
         }
 
+        public void UnmakeMove(Move move) //add castling, en passant
+        {
+            int start = move.GetStart();
+            int target = move.GetTarget();
+            int piece = move.GetPiece();
+            int flag = move.GetFlag();
+            int capture = move.GetCapture();
+            if (ColourToMove == 1) //white unmaking the unmove
+            {
+                WhitePieces.SetBit(start);
+                WhitePieces.ClearBit(target);
+                OccupiedSquares.SetBit(start);
+                Pieces[piece].SetBit(start); //move the piece back
+                Pieces[piece].ClearBit(target); //empty where the piece just moved back from
+                if (capture != 0b111) // if it was a capturing move
+                {
+                    Pieces[capture + 6].SetBit(target);
+                    BlackPieces.SetBit(target);
+                } else{
+                    OccupiedSquares.ClearBit(target);
+                }
+            } else {
+                BlackPieces.SetBit(start);
+                BlackPieces.ClearBit(target);
+                OccupiedSquares.SetBit(start);
+                Pieces[piece + 6].SetBit(start); //move the piece back
+                Pieces[piece + 6].ClearBit(target); //empty where the piece just moved back from
+                if (capture != 0b111) // if it was a capturing move
+                {
+                    Pieces[capture].SetBit(target);
+                    WhitePieces.SetBit(target);
+                } else{
+                    OccupiedSquares.ClearBit(target);
+                }
+            }
+
+            UnupdateEval(move);
+            UpdateZobrist(move);
+            ColourToMove = (ColourToMove == 0 ? 1 : 0);
+        }
+
         public void UpdateEval(Move move)
         {
             if (move.GetFlag() == 0b0101 || move.GetFlag() >= 0b1000)
@@ -176,7 +217,39 @@ namespace ChessEngine
             }
         }
 
-        public void UpdateZobrist(Move move) 
+        public void UnupdateEval(Move move)
+        {
+            if (move.GetFlag() == 0b0101 || move.GetFlag() >= 0b1000)
+            {
+                Eval = Evaluation.WeightedMaterial(this);
+                return;
+            }
+            int piece = move.GetPiece();
+            int target = move.GetTarget();
+            int start = move.GetStart();
+            int capture = move.GetCapture();
+
+            if (ColourToMove == 1) //white is unmaking the move
+            {
+                Eval -= Evaluation.PieceSquareTable[piece][((7  - (target / 8)) * 8 + target % 8)];
+                Eval += Evaluation.PieceSquareTable[piece][((7  - (start / 8)) * 8 + start % 8)];
+                if (capture != 0b111) //is an uncapturing unmove
+                {
+                    Eval -= Evaluation.MaterialValues[capture];
+                    Eval -= Evaluation.PieceSquareTable[capture][target];
+                }
+            } else { //black unmaking the move
+                Eval += Evaluation.PieceSquareTable[piece][target];
+                Eval -= Evaluation.PieceSquareTable[piece][start];
+                if (capture != 0b111) //is an uncapturing unmove
+                {
+                    Eval += Evaluation.MaterialValues[capture];
+                    Eval += Evaluation.PieceSquareTable[capture][((7  - (target / 8)) * 8 + target % 8)];
+                }
+            }
+        }
+
+        public void UpdateZobrist(Move move) //this works for making and unmaking moves 
         {
             //Console.WriteLine("prior zobby: " + Zobrist);
             int colourAdd = (ColourToMove == 0 ? 0 : 6); // determines adding constant if it is black moving
