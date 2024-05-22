@@ -3,9 +3,11 @@ namespace ChessEngine
     public class ZobristHasher
     {
         public ulong[][] ZobristTable = new ulong[12][];
+        public ulong SideToMove;
         public ZobristHasher()
         {
             Random rand = new Random();
+            SideToMove = (ulong)(rand.NextDouble() * ulong.MaxValue);
             for (int p = 0; p < 12; p++)
             {
                 ZobristTable[p] = new ulong[64];
@@ -26,6 +28,7 @@ namespace ChessEngine
                     if (board.Pieces[p].IsBitSet(i)) hash ^= ZobristTable[p][i];
                 }
             }
+            hash ^= SideToMove;
             return hash;
         }
     }
@@ -35,11 +38,13 @@ namespace ChessEngine
         public float Evaluation;
         public int Depth;
         public int NodeType;
-        public TranspositionEntry(ulong zobrist, float evaluation, int depth, int nodetype)
+        public Move BestMove;
+        public TranspositionEntry(ulong zobrist, float evaluation, int depth, Move bestmove, int nodetype)
         {
             Zobrist = zobrist;
             Evaluation = evaluation;
             Depth = depth;
+            BestMove = bestmove;
             NodeType = nodetype;
         }
     }
@@ -56,11 +61,11 @@ namespace ChessEngine
             table = new Dictionary<ulong, TranspositionEntry>();
         }
 
-        public void Store(ulong zobrist, float evaluation, int depth, int nodetype)
+        public void Store(ulong zobrist, float evaluation, int depth, Move bestmove, int nodetype)
         {
             if (!table.ContainsKey(zobrist) || table[zobrist].Depth <= depth) //if it is a better indicator of evaluation
             {
-                table[zobrist] = new TranspositionEntry(zobrist, evaluation, depth, nodetype);
+                table[zobrist] = new TranspositionEntry(zobrist, evaluation, depth, bestmove, nodetype);
             }
         }
 

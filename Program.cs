@@ -11,28 +11,24 @@ namespace ChessEngine
             Board board = new Board();
             board.PrintBoard();
             PreComputeData.InitializeAttackBitboards();
+            TranspositionTable TTable = new TranspositionTable();
             board.Eval = Evaluation.WeightedMaterial(board);
-            Console.WriteLine(board.Zobrist);
             // Console.WriteLine("perft 3: " + Search.Perft(3, board));
             // Console.WriteLine("perft 4: " + Search.Perft(4, board));
             // Console.WriteLine("perft 5: " + Search.Perft(3, board));
             while (true)
             {
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 6, TTable);
+                board.MakeMove(BestMove);
+                board.PrintBoard();
+                BestMove.PrintMove();
+
                 Move move = GetUserMove(board);
                 //PrintMoves(board);
                 board.MakeMove(move);
                 move.PrintMove();
                 board.PrintBoard();
-                Console.WriteLine("Updating Eval: " + board.Eval);
-                Console.WriteLine("Weighted Material: " + Evaluation.WeightedMaterial(board));
-                (Move BestMove, float Eval) = Search.AlphaBeta(board, 5);
-                board.MakeMove(BestMove);
-                board.PrintBoard();
-                BestMove.PrintMove();
-                Console.WriteLine("Evaluation: " + Eval);
-                Console.WriteLine("Weighted Material: " + Evaluation.WeightedMaterial(board));
-                Console.WriteLine("Updating Eval: " + board.Eval);
-                Console.WriteLine("Updating: " + board.Zobrist);
+
             }
         }
 

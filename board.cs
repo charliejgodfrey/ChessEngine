@@ -156,8 +156,8 @@ namespace ChessEngine
             int capture = move.GetCapture();
             if (ColourToMove == 0)
             {
-                Eval += Evaluation.PieceSquareTable[piece][63 - target];
-                Eval -= Evaluation.PieceSquareTable[piece][63 - start];
+                Eval += Evaluation.PieceSquareTable[piece][((7  - (target / 8)) * 8 + target % 8)];
+                Eval -= Evaluation.PieceSquareTable[piece][((7  - (start / 8)) * 8 + start % 8)];
                 if (capture != 0b111) //it is a capture
                 {
                     Eval += Evaluation.MaterialValues[capture];
@@ -171,15 +171,29 @@ namespace ChessEngine
                 if (capture != 0b111)
                 {
                     Eval -= Evaluation.MaterialValues[capture];
-                    Eval -= Evaluation.PieceSquareTable[capture][63 - target];
+                    Eval -= Evaluation.PieceSquareTable[capture][((7  - (target / 8)) * 8 + target % 8)];
                 }
             }
         }
 
-        public void UpdateZobrist(Move move)
+        public void UpdateZobrist(Move move) 
         {
-            Zobrist ^= Hasher.ZobristTable[move.GetPiece()][move.GetStart()];
-            Zobrist ^= Hasher.ZobristTable[move.GetPiece()][move.GetTarget()];
+            //Console.WriteLine("prior zobby: " + Zobrist);
+            int colourAdd = (ColourToMove == 0 ? 0 : 6); // determines adding constant if it is black moving
+            if (move.GetFlag() == 0b0101 || move.GetFlag() >= 0b1000)
+            {
+                Zobrist = Hasher.Hash(this);
+                return;
+            }
+            Zobrist ^= Hasher.ZobristTable[move.GetPiece()+colourAdd][move.GetStart()];
+            Zobrist ^= Hasher.ZobristTable[move.GetPiece()+colourAdd][move.GetTarget()];
+            if (move.GetCapture() != 0b111) //it is a capture
+            {
+                Zobrist ^= Hasher.ZobristTable[move.GetCapture() + (ColourToMove == 0 ? 6 : 0)][move.GetTarget()];
+            }
+            Zobrist ^= Hasher.SideToMove;
+            //Console.WriteLine("update zobrist: " + Zobrist);
+            //Console.WriteLine("correct zobrist: " + Hasher.Hash(this));
         }
 
         public void Castle(int type)
@@ -233,6 +247,7 @@ namespace ChessEngine
         {
             Board board = new Board(DefaultFEN, true);
             board.Hasher = this.Hasher;
+            board.Zobrist = this.Zobrist;
             board.ColourToMove = this.ColourToMove;
             board.EnPassantSquare = this.EnPassantSquare;
             board.MoveNumber = this.MoveNumber;

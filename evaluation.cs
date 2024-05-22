@@ -29,7 +29,7 @@ namespace ChessEngine
                         score += MaterialValues[p];
                         if (p < 6) //white piece
                         {
-                            score += PieceSquareTable[p][63 - i];
+                            score += PieceSquareTable[p][((7  - (i / 8)) * 8 + i % 8)];
                         } else{ //black piece
                             score -= PieceSquareTable[p-6][i];
                         }
@@ -39,14 +39,15 @@ namespace ChessEngine
             return score;
         }
 
-        public static void OrderMoves(Board board, Move[] Moves)
+        public static void OrderMoves(Board board, Move[] Moves, Move HashMove)
         {
-            Array.Sort(Moves, (move1, move2) => EvaluateMove(board, move2).CompareTo(EvaluateMove(board, move1)));
+            Array.Sort(Moves, (move1, move2) => EvaluateMove(board, move2, HashMove).CompareTo(EvaluateMove(board, move1, HashMove)));
         }
 
-        public static float EvaluateMove(Board board, Move move)
+        public static float EvaluateMove(Board board, Move move, Move HashMove)
         {
             if (move.GetData() == 0) return -100000000; // empty move
+            if (move.GetData() == HashMove.GetData()) return 1000000;
             float score = 0;
             int capture = move.GetCapture();
             if (capture != 7)
