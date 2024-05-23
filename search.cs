@@ -51,12 +51,12 @@ namespace ChessEngine
             if (Depth == 0)
             {
                 return (new Move(), QuiescienceSearch(board) * (board.ColourToMove == 0 ? 1 : -1), new Move[100]);
+                //return (new Move(), Evaluation.Evaluate(board), new Move[100]);
             }
 
-            Move[] Moves = MoveGenerator.GenerateMoves(board);
-            Evaluation.OrderMoves(board, Moves, HashMove);
+            Move[] Moves = (entry == null ? MoveGenerator.GenerateMoves(board) : entry.LegalMoves);
+            if (Depth >= 2) Evaluation.OrderMoves(board, Moves, HashMove); // the two is a bit arbitrary but seems to be what works the best
             
-            Board RetraceBoard = board.Copy();
             Move BestMove = NullMove;
 
             if (Moves[0].GetData() == 0) //no legal moves
@@ -71,7 +71,7 @@ namespace ChessEngine
             {
                 //Board TemporaryBoard = board.Copy();
                 if (Moves[i].GetData() == 0) break; //done all moves
-                if (!MoveGenerator.CheckLegal(board, Moves[i])) continue; //illegal move so ignore
+                if (entry == null) if (!MoveGenerator.CheckLegal(board, Moves[i])) continue; //illegal move so ignore
 
                 board.MakeMove(Moves[i]);
                 (Move TopMove, float Score, Move[] PV) = AlphaBeta(board, Depth - 1, TTable, -Beta, -Alpha);
@@ -84,18 +84,22 @@ namespace ChessEngine
                     PrincipleVariation = PV;
                 }
                 Alpha = Math.Max(Alpha, Eval);
-                if (Eval >= Beta) break;
+                if (Eval >= Beta) 
+                {
+                    Evaluation.UpdateHistoryTable(Moves[i], Depth); //adds it as a good move to look for
+                    break;
+                }
             }
             int nodetype = (maxEval <= Alpha) ? 2 : (maxEval >= Beta) ? 1 : 0;
 
-            TTable.Store(board.Zobrist, maxEval, Depth, ReturnMove, nodetype);
+            TTable.Store(board.Zobrist, maxEval, Depth, ReturnMove, Moves,nodetype);
             PrincipleVariation[Depth] = ReturnMove;
             return (ReturnMove, maxEval, PrincipleVariation);
         }
 
         public static float QuiescienceSearch(Board board, float Alpha = -1000000, float Beta = 1000000)
         {
-            float Eval = board.Eval;
+            float Eval = Evaluation.Evaluate(board);
             if (Eval >= Beta) 
             {
                 return Beta;
@@ -107,6 +111,7 @@ namespace ChessEngine
 
             for (int i = 0; i < 218; i++)
             {
+                if (moves[i].GetData() == 0) break;
                 if (!moves[i].IsCapture())
                 {
                     continue;
@@ -135,7 +140,6 @@ namespace ChessEngine
             Move[] moves = MoveGenerator.GenerateMoves(board);
             for (int i = 0; i < 218; i++) //all move thingys have length 218
             {
-                //Board TemporaryBoard = board.Copy();
                 if (moves[i].GetData() == 0) //done all non empty moves
                 {
                     break;

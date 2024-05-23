@@ -19,7 +19,7 @@ namespace ChessEngine
             MoveNumber = GeneratePawnMoves(board, Moves, MoveNumber);
             MoveNumber = GenerateKingMoves(board, Moves, MoveNumber); 
             MoveNumber = GenerateKnightMoves(board, Moves, MoveNumber);
-            MoveNumber = CheckCastle(board, Moves, MoveNumber);
+            //MoveNumber = CheckCastle(board, Moves, MoveNumber);
             return Moves;
         }
 

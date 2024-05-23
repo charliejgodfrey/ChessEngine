@@ -38,13 +38,15 @@ namespace ChessEngine
         public float Evaluation;
         public int Depth;
         public int NodeType;
+        public Move[] LegalMoves;
         public Move BestMove;
-        public TranspositionEntry(ulong zobrist, float evaluation, int depth, Move bestmove, int nodetype)
+        public TranspositionEntry(ulong zobrist, float evaluation, int depth, Move bestmove, Move[] legalmoves, int nodetype)
         {
             Zobrist = zobrist;
             Evaluation = evaluation;
             Depth = depth;
             BestMove = bestmove;
+            LegalMoves = legalmoves;
             NodeType = nodetype;
         }
     }
@@ -61,11 +63,11 @@ namespace ChessEngine
             table = new Dictionary<ulong, TranspositionEntry>();
         }
 
-        public void Store(ulong zobrist, float evaluation, int depth, Move bestmove, int nodetype)
+        public void Store(ulong zobrist, float evaluation, int depth, Move bestmove, Move[] legalmoves, int nodetype)
         {
             if (!table.ContainsKey(zobrist) || table[zobrist].Depth <= depth) //if it is a better indicator of evaluation
             {
-                table[zobrist] = new TranspositionEntry(zobrist, evaluation, depth, bestmove, nodetype);
+                table[zobrist] = new TranspositionEntry(zobrist, evaluation, depth, bestmove, legalmoves, nodetype);
             }
         }
 
@@ -76,6 +78,27 @@ namespace ChessEngine
                 return entry;
             }
             return null;
+        }
+    }
+
+    public class PieceTable //class for specific piece evaluation - mainly pawn structure
+    {
+        public readonly Dictionary<ulong, float> table;
+        public PieceTable()
+        {
+            table = new Dictionary<ulong, float>();
+        }
+        public void Store(ulong position, float evaluation)
+        {
+            table[position] = evaluation;
+        }
+        public float Retrieve(ulong position)
+        {
+            if (table.TryGetValue(position, out float value))
+            {
+                return value;
+            }
+            return -1000000; //clearly not valid
         }
     }
 }
