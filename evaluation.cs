@@ -7,8 +7,9 @@ namespace ChessEngine
     public static class Evaluation 
     {
         public static float[] MaterialValues = [100,320,330,500,900,10000,-100,-320,-330,-500,-900,-10000];
-        public static PieceTable PawnEvaluationTable = new PieceTable();
-        public static int[,,] HistoryTable = new int[64, 64, 16];
+        public static PieceTable PawnEvaluationTable = new PieceTable(); //for pawn structure analysis
+        public static int[,,] HistoryTable = new int[64, 64, 16]; //stores how good moves are shown to have been in prior searches
+        public static Move[][] KillerMoves = new Move[128][];
 
         public static float Evaluate(Board board)
         {
@@ -80,14 +81,14 @@ namespace ChessEngine
             return score;
         }
 
-        public static void OrderMoves(Board board, Move[] Moves, Move HashMove)
+        public static void OrderMoves(Board board, Move[] Moves, Move HashMove, int Depth)
         {
             List<(Move, float)> nonEmptyMoves = new List<(Move, float)>();
             foreach (var move in Moves)
             {
                 if (move.GetData() != 0)
                 {
-                    nonEmptyMoves.Add((move, EvaluateMove(board, move, HashMove)));
+                    nonEmptyMoves.Add((move, EvaluateMove(board, move, HashMove, Depth)));
                 }
             }
             nonEmptyMoves.Sort((move1, move2) => move2.Item2.CompareTo(move1.Item2)); //this is cheaper after null moves are filtered out
@@ -99,10 +100,12 @@ namespace ChessEngine
             //Array.Sort(Moves, (move1, move2) => EvaluateMove(board, move2, HashMove).CompareTo(EvaluateMove(board, move1, HashMove)));
         }
 
-        public static float EvaluateMove(Board board, Move move, Move HashMove)
+        public static float EvaluateMove(Board board, Move move, Move HashMove, int Depth)
         {
             if (move.GetData() == 0) return -100000000; // empty move
             if (move.GetData() == HashMove.GetData()) return 1000000;
+            if (move.GetData() == KillerMoves[Depth][0].GetData()) return 900000;
+            if (move.GetData() == KillerMoves[Depth][1].GetData()) return 800000;
             float score = 0;
             score += HistoryTable[move.GetStart(), move.GetTarget(), move.GetFlag()];
             int capture = move.GetCapture();
@@ -127,6 +130,14 @@ namespace ChessEngine
         public static void UpdateHistoryTable(Move move, int Depth)
         {
             HistoryTable[move.GetStart(), move.GetTarget(), move.GetFlag()] += Depth*Depth;
+        }
+
+        public static void InitializeKillerMoves()
+        {
+            for (int i = 0; i < 128; i++)
+            {
+                KillerMoves[i] = new Move[2];
+            }
         }
 
         // piece square tables used for evaluation

@@ -8,10 +8,11 @@ namespace ChessEngine
         static void Main()
         {
             //setup stuff
-            Board board = new Board();
+            Board board = new Board("r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R");
             board.PrintBoard();
             PreComputeData.InitializeAttackBitboards();
             TranspositionTable TTable = new TranspositionTable();
+            Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             for (int i = 0; i < 7; i++)
             {

@@ -14,6 +14,7 @@ namespace ChessEngine
             {
                 Console.WriteLine("Depth Currently Searching..." + depth);
                 (BestMove, Eval, Move[] PV) = AlphaBeta(board, depth, TTable);
+                Evaluation.InitializeKillerMoves(); //clear killer moves
                 PrincipleVariation = PV;
             }
             return (BestMove, Eval, PrincipleVariation);
@@ -55,7 +56,7 @@ namespace ChessEngine
             }
 
             Move[] Moves = (entry == null ? MoveGenerator.GenerateMoves(board) : entry.LegalMoves);
-            if (Depth >= 2) Evaluation.OrderMoves(board, Moves, HashMove); // the two is a bit arbitrary but seems to be what works the best
+            if (Depth >= 2) Evaluation.OrderMoves(board, Moves, HashMove, Depth); // the two is a bit arbitrary but seems to be what works the best
             
             Move BestMove = NullMove;
 
@@ -87,6 +88,8 @@ namespace ChessEngine
                 if (Eval >= Beta) 
                 {
                     Evaluation.UpdateHistoryTable(Moves[i], Depth); //adds it as a good move to look for
+                    Evaluation.KillerMoves[Depth][0] = Evaluation.KillerMoves[Depth][1];
+                    Evaluation.KillerMoves[Depth][1] = Moves[i];
                     break;
                 }
             }
