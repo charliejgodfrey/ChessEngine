@@ -8,30 +8,35 @@ namespace ChessEngine
         static void Main()
         {
             //setup stuff
-            Board board = new Board("r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R");
+            Board board = new Board("r1b1k2r/pppp1ppp/2n1pn2/8/3P1q2/P4N2/1PPBQPPP/R3KB1R");
             board.PrintBoard();
             PreComputeData.InitializeAttackBitboards();
             TranspositionTable TTable = new TranspositionTable();
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
-            for (int i = 0; i < 7; i++)
+            for (int i = 1; i < 6; i++)
             {
-                //Console.WriteLine("perft: " + i + "result: " + Search.Perft(i, board));
+                //Console.WriteLine("perft: " + i + " result: " + Search.Perft(i, board));
             }
 
             while (true)
             {
-                // Move move = GetUserMove(board);
-                // board.MakeMove(move);
-                // move.PrintMove();
-                // board.PrintBoard();
-
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 8, TTable);
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 7, TTable);
+                Console.WriteLine("eval: " + board.Eval);
+                Console.WriteLine("correct eval: " + Evaluation.WeightedMaterial(board));
                 board.MakeMove(BestMove);
                 board.PrintBoard();
                 BestMove.PrintMove();
+                Console.WriteLine("eval: " + board.Eval);
+                Console.WriteLine("correct eval: " + Evaluation.WeightedMaterial(board));
                 Console.WriteLine("Computer Evaluation Assessment: " + (Eval/100));
-                break;
+
+                Move move = GetUserMove(board);
+                board.MakeMove(move);
+                move.PrintMove();
+                board.PrintBoard();
+                Console.WriteLine("eval: " + board.Eval);
+                Console.WriteLine("correct eval: " + Evaluation.WeightedMaterial(board));
             }
         }
 

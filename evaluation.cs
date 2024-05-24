@@ -13,6 +13,8 @@ namespace ChessEngine
 
         public static float Evaluate(Board board)
         {
+            //return WeightedMaterial(board);
+            return board.Eval;
             float WhitePawns = PawnEvaluationTable.Retrieve(board.WhitePawns.GetData());
             float BlackPawns = PawnEvaluationTable.Retrieve(board.BlackPawns.GetData());
             if (WhitePawns == -1000000) //not in the table
@@ -97,12 +99,12 @@ namespace ChessEngine
                 Moves[i] = nonEmptyMoves[i].Item1;
             }
 
-            //Array.Sort(Moves, (move1, move2) => EvaluateMove(board, move2, HashMove).CompareTo(EvaluateMove(board, move1, HashMove)));
+            //Array.Sort(Moves, (move1, move2) => EvaluateMove(board, move2, HashMove, Depth).CompareTo(EvaluateMove(board, move1, HashMove, Depth)));
         }
 
         public static float EvaluateMove(Board board, Move move, Move HashMove, int Depth)
         {
-            if (move.GetData() == 0) return -100000000; // empty move
+            if (move.GetData() == 0) return -10000000; // empty move
             if (move.GetData() == HashMove.GetData()) return 1000000;
             if (move.GetData() == KillerMoves[Depth][0].GetData()) return 900000;
             if (move.GetData() == KillerMoves[Depth][1].GetData()) return 800000;

@@ -30,10 +30,10 @@ namespace ChessEngine
             int KingSquare = (board.ColourToMove == 1 ? board.WhiteKing.LSB() : board.BlackKing.LSB());
             if (KingSquare < 0 || KingSquare > 63){ Console.WriteLine("King Square l31: " + KingSquare);
             board.PrintBoard();board.WhiteKing.PrintData();Move.PrintMove();}
-            Bitboard KnightAttacks = PreComputeData.KnightAttackBitboards[KingSquare]; // where a knight could attack the king from
-            if ((KnightAttacks.GetData() & board.Pieces[1 + ColourAdd].GetData()) != 0)
+            ulong KnightAttacks = PreComputeData.KnightAttackBitboards[KingSquare].GetData(); // where a knight could attack the king from
+            if (((KnightAttacks) & board.Pieces[1 + ColourAdd].GetData()) != 0)
             {
-                board.UnmakeMove(Move); 
+                board.UnmakeMove(Move);
                 return false;
             }
 

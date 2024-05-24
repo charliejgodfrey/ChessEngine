@@ -17,10 +17,14 @@ namespace ChessEngine
                 Evaluation.InitializeKillerMoves(); //clear killer moves
                 PrincipleVariation = PV;
             }
+            for (int i = 0; i < 10;i++)
+            {
+                PrincipleVariation[i].PrintMove();
+            }
             return (BestMove, Eval, PrincipleVariation);
         }
 
-        public static (Move, float, Move[]) AlphaBeta(Board board, int Depth, TranspositionTable TTable, float Alpha = -1000000, float Beta = 1000000)
+        public static (Move, float, Move[]) AlphaBeta(Board board, int Depth, TranspositionTable TTable, float Alpha = -10000000, float Beta = 10000000)
         {
             // Console.WriteLine("zobrist: " + board.Zobrist);
             TranspositionEntry entry = TTable.Retrieve(board.Zobrist);
@@ -55,24 +59,24 @@ namespace ChessEngine
                 //return (new Move(), Evaluation.Evaluate(board), new Move[100]);
             }
 
-            Move[] Moves = (entry == null ? MoveGenerator.GenerateMoves(board) : entry.LegalMoves);
+            Move[] Moves = MoveGenerator.GenerateMoves(board);
             if (Depth >= 2) Evaluation.OrderMoves(board, Moves, HashMove, Depth); // the two is a bit arbitrary but seems to be what works the best
             
             Move BestMove = NullMove;
 
             if (Moves[0].GetData() == 0) //no legal moves
             {
-                if (!MoveGenerator.CheckLegal(board, NullMove)) return (NullMove, -1000000 * Depth, EmptyVariation); //checkmate
+                if (!MoveGenerator.CheckLegal(board, NullMove)) return (NullMove, 0 * Depth, EmptyVariation); //checkmate
                 else return (NullMove, 0, EmptyVariation); //stalemate
             }
             float maxEval = -100000000;
-            Move ReturnMove = NullMove;
+            Move ReturnMove = Moves[0];
             Move[] PrincipleVariation = new Move[100];
             for (int i = 0; i < 218; i++)
             {
                 //Board TemporaryBoard = board.Copy();
                 if (Moves[i].GetData() == 0) break; //done all moves
-                if (entry == null) if (!MoveGenerator.CheckLegal(board, Moves[i])) continue; //illegal move so ignore
+                if (!MoveGenerator.CheckLegal(board, Moves[i])) continue; //illegal move so ignore
 
                 board.MakeMove(Moves[i]);
                 (Move TopMove, float Score, Move[] PV) = AlphaBeta(board, Depth - 1, TTable, -Beta, -Alpha);

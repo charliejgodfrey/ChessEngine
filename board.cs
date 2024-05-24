@@ -65,6 +65,7 @@ namespace ChessEngine
                 if ((WhiteBishops.GetData() & mask) != 0) return 2;
                 if ((WhiteRooks.GetData() & mask) != 0) return 3;
                 if ((WhiteQueens.GetData() & mask) != 0) return 4;
+                if ((WhiteKing.GetData() & mask) != 0) return 5;
                 else return 7;
             }
             if (Colour == 1) //black piece on the location
@@ -74,6 +75,7 @@ namespace ChessEngine
                 if ((BlackBishops.GetData() & mask) != 0) return 2;
                 if ((BlackRooks.GetData() & mask) != 0) return 3;
                 if ((BlackQueens.GetData() & mask) != 0) return 4;
+                if ((BlackKing.GetData() & mask) != 0) return 5;
                 else return 7;
             }
             return 7;
@@ -81,6 +83,13 @@ namespace ChessEngine
 
         public void MakeMove(Move move) 
         {
+            // if (move.GetTarget() == 49)
+            // {
+            //     PrintBoard();
+            //     move.PrintMove();
+            // }
+
+
             if (move.GetNullMove() == 1)
             {
                 ColourToMove = (ColourToMove == 0 ? 1 : 0);
@@ -111,6 +120,7 @@ namespace ChessEngine
                 Pieces[piece].SetBit(target);
                 //taking into account captures
                 if (capture != 0b111) Pieces[capture + 6].ClearBit(target);
+                //for (int i = 6; i<12;i++) Pieces[i].ClearBit(target);
             } else { //black moving
                 BlackPieces.ClearBit(start);
                 BlackPieces.SetBit(target);
@@ -120,6 +130,7 @@ namespace ChessEngine
                 Pieces[piece + 6].SetBit(target);
                 //taking into account captures
                 if (capture != 0b111) Pieces[capture].ClearBit(target);
+                //for (int i = 0; i<6;i++) Pieces[i].ClearBit(target);
             }
 
             //other checks:
@@ -155,27 +166,39 @@ namespace ChessEngine
                 WhitePieces.SetBit(start);
                 WhitePieces.ClearBit(target);
                 OccupiedSquares.SetBit(start);
-                Pieces[piece].SetBit(start); //move the piece back
                 Pieces[piece].ClearBit(target); //empty where the piece just moved back from
                 if (capture != 0b111) // if it was a capturing move
                 {
                     Pieces[capture + 6].SetBit(target);
                     BlackPieces.SetBit(target);
+                    OccupiedSquares.SetBit(target);
                 } else{
                     OccupiedSquares.ClearBit(target);
+                }
+                if (flag >= 0b1000) //promotion
+                {
+                    Pieces[0].SetBit(start); //move the piece back but into a pawn
+                } else {
+                    Pieces[piece].SetBit(start);
                 }
             } else {
                 BlackPieces.SetBit(start);
                 BlackPieces.ClearBit(target);
                 OccupiedSquares.SetBit(start);
-                Pieces[piece + 6].SetBit(start); //move the piece back
                 Pieces[piece + 6].ClearBit(target); //empty where the piece just moved back from
                 if (capture != 0b111) // if it was a capturing move
                 {
                     Pieces[capture].SetBit(target);
                     WhitePieces.SetBit(target);
+                    OccupiedSquares.SetBit(target);
                 } else{
                     OccupiedSquares.ClearBit(target);
+                }
+                if (flag >= 0b1000) //promotion
+                {
+                    Pieces[6].SetBit(start); //move the piece back
+                } else {
+                    Pieces[piece+6].SetBit(start);
                 }
             }
 
