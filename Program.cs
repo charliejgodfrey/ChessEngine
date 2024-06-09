@@ -8,7 +8,7 @@ namespace ChessEngine
         static void Main()
         {
             //setup stuff
-            Board board = new Board("r1b1k2r/pppp1ppp/2n1pn2/8/3P1q2/P4N2/1PPBQPPP/R3KB1R");
+            Board board = new Board();
             board.PrintBoard();
             PreComputeData.InitializeAttackBitboards();
             TranspositionTable TTable = new TranspositionTable();
@@ -21,22 +21,17 @@ namespace ChessEngine
 
             while (true)
             {
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 7, TTable);
-                Console.WriteLine("eval: " + board.Eval);
-                Console.WriteLine("correct eval: " + Evaluation.WeightedMaterial(board));
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 9, TTable);
                 board.MakeMove(BestMove);
                 board.PrintBoard();
                 BestMove.PrintMove();
-                Console.WriteLine("eval: " + board.Eval);
-                Console.WriteLine("correct eval: " + Evaluation.WeightedMaterial(board));
                 Console.WriteLine("Computer Evaluation Assessment: " + (Eval/100));
 
                 Move move = GetUserMove(board);
                 board.MakeMove(move);
                 move.PrintMove();
                 board.PrintBoard();
-                Console.WriteLine("eval: " + board.Eval);
-                Console.WriteLine("correct eval: " + Evaluation.WeightedMaterial(board));
+                //break;
             }
         }
 

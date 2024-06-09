@@ -106,10 +106,12 @@ namespace ChessEngine
         {
             if (move.GetData() == 0) return -10000000; // empty move
             if (move.GetData() == HashMove.GetData()) return 1000000;
-            if (move.GetData() == KillerMoves[Depth][0].GetData()) return 900000;
-            if (move.GetData() == KillerMoves[Depth][1].GetData()) return 800000;
+            if (move.GetData() == KillerMoves[Depth][0].GetData()) return 2000;
+            if (move.GetData() == KillerMoves[Depth][1].GetData()) return 1500;
+            int HistoryScore = HistoryTable[move.GetStart(), move.GetTarget(), move.GetFlag()];
+            if (HistoryScore > 1000) {HistoryScore =1000;HistoryTable[move.GetStart(), move.GetTarget(), move.GetFlag()] = 1000;}
             float score = 0;
-            score += HistoryTable[move.GetStart(), move.GetTarget(), move.GetFlag()];
+            score += HistoryScore;
             int capture = move.GetCapture();
             if (capture != 7)
             {
