@@ -4,7 +4,7 @@ namespace ChessEngine
     {
         public static Move NullMove = new Move(0,0,0,0,0,1);
         public static Move[] EmptyVariation = new Move[100];
-        public static int LMRThreshold = 4;
+        public static int LMRThreshold = 6;
 
         public static (Move, float, Move[]) IterativeDeepeningSearch(Board board, int maxDepth, TranspositionTable TTable)
         {
@@ -14,6 +14,7 @@ namespace ChessEngine
             for (int depth = 1; depth <= maxDepth; depth++)
             {
                 Console.WriteLine("Depth Currently Searching..." + depth);
+                //LMRThreshold = 3*(maxDepth - depth);
                 (BestMove, Eval, Move[] PV) = AlphaBeta(board, depth, TTable);
                 Evaluation.InitializeKillerMoves(); //clear killer moves
                 PrincipleVariation = PV;
@@ -31,7 +32,7 @@ namespace ChessEngine
             TranspositionEntry entry = TTable.Retrieve(board.Zobrist);
             Move HashMove = NullMove;
 
-            if (entry != null)
+            if (entry != null) //transposition table stuff
             {
                 if (entry.NodeType == 0 && entry.Depth >= Depth) // exact value
                 {
@@ -60,6 +61,11 @@ namespace ChessEngine
                 //return (new Move(), Evaluation.Evaluate(board), new Move[100]);
             }
 
+            if (Depth == 1 && Evaluation.Evaluate(board) + 100 <= Alpha)
+            {
+                return (new Move(), QuiescienceSearch(board) * (board.ColourToMove == 0 ? 1 : -1), new Move[100]);
+            }
+
             Move[] Moves = MoveGenerator.GenerateMoves(board);
             if (Depth >= 2) Evaluation.OrderMoves(board, Moves, HashMove, Depth); // the two is a bit arbitrary but seems to be what works the best
             
@@ -67,7 +73,7 @@ namespace ChessEngine
 
             if (Moves[0].GetData() == 0) //no legal moves
             {
-                if (!MoveGenerator.CheckLegal(board, NullMove)) return (NullMove, 0 * Depth, EmptyVariation); //checkmate
+                if (!MoveGenerator.CheckLegal(board, NullMove)) return (NullMove, -1000000 * Depth, EmptyVariation); //checkmate
                 else return (NullMove, 0, EmptyVariation); //stalemate
             }
             float maxEval = -100000000;
