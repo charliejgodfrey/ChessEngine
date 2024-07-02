@@ -13,7 +13,7 @@ namespace ChessEngine
             Move[] PrincipleVariation = new Move[maxDepth];
             for (int depth = 1; depth <= maxDepth; depth++)
             {
-                Console.WriteLine("Depth Currently Searching..." + depth);
+                //Console.WriteLine("Depth Currently Searching..." + depth);
                 //LMRThreshold = 3*(maxDepth - depth);
                 (BestMove, Eval, Move[] PV) = AlphaBeta(board, depth, TTable);
                 Evaluation.InitializeKillerMoves(); //clear killer moves
@@ -21,7 +21,7 @@ namespace ChessEngine
             }
             for (int i = 0; i < 10;i++)
             {
-                PrincipleVariation[i].PrintMove();
+                //PrincipleVariation[i].PrintMove();
             }
             return (BestMove, Eval, PrincipleVariation);
         }
@@ -61,10 +61,10 @@ namespace ChessEngine
                 //return (new Move(), Evaluation.Evaluate(board), new Move[100]);
             }
 
-            if (Depth == 1 && Evaluation.Evaluate(board) + 100 <= Alpha)
-            {
-                return (new Move(), QuiescienceSearch(board) * (board.ColourToMove == 0 ? 1 : -1), new Move[100]);
-            }
+            // if (Depth == 1 && board.Eval + 100 <= Alpha)
+            // {
+            //     return (new Move(), Evaluation.Evaluate(board) * (board.ColourToMove == 0 ? 1 : -1), new Move[100]);
+            // }
 
             Move[] Moves = MoveGenerator.GenerateMoves(board);
             if (Depth >= 2) Evaluation.OrderMoves(board, Moves, HashMove, Depth); // the two is a bit arbitrary but seems to be what works the best
@@ -89,7 +89,7 @@ namespace ChessEngine
                 Move TopMove;
                 float Score;
                 Move[] PV;
-                if (i > LMRThreshold && Depth > 1) // idea of this is to reduce search of bad variations
+                if (i > LMRThreshold && Depth > 1 && Depth < 6) // idea of this is to reduce search of bad variations
                 {
                     (TopMove, Score, PV) = AlphaBeta(board, Depth - 2, TTable, -Beta, -Alpha);
                 } else { // if it looks like a move worth searching

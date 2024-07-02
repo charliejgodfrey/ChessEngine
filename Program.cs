@@ -14,23 +14,24 @@ namespace ChessEngine
             TranspositionTable TTable = new TranspositionTable();
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
-            for (int i = 1; i < 6; i++)
+            for (int i = 1; i < 8; i++)
             {
-                //Console.WriteLine("perft: " + i + " result: " + Search.Perft(i, board));
+                Console.WriteLine("perft: " + i + " result: " + Search.Perft(i, board));
             }
 
             while (true)
             {
+                break;
                 (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 9, TTable);
                 board.MakeMove(BestMove);
-                board.PrintBoard();
+                //board.PrintBoard();
                 BestMove.PrintMove();
                 Console.WriteLine("Computer Evaluation Assessment: " + (Eval/100));
 
-                Move move = GetUserMove(board);
-                board.MakeMove(move);
-                move.PrintMove();
-                board.PrintBoard();
+                // Move move = GetUserMove(board);
+                // board.MakeMove(move);
+                // move.PrintMove();
+                // board.PrintBoard();
                 //break;
             }
         }
