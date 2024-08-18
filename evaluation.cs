@@ -32,7 +32,54 @@ namespace ChessEngine
 
         public static float EvaluatePawnStructure(Bitboard Pawns, int Player)
         {
-            return 0;
+            //return 0;
+            float score = 0;
+            score -= PawnDoubles(Pawns, Player) * 50;
+            score -= PawnIsolated(Pawns, Player) * 50;
+            return score;
+        }
+
+        public static float WhiteBackwardsPawns(Bitboard wPawns, Bitboard bPawns) //this needs testing
+        {
+            Bitboard stops = new Bitboard(wPawns.GetData() << 8); //squares ahead of the pawns
+            Bitboard wSpans = new Bitboard(((wPawns.GetData() << 9) & (0x7F7F7F7F7F7F7F7F)) | ((wPawns.GetData() << 7) & (0xFEFEFEFEFEFEFEFE))); //squares attacked by white pawns
+            Bitboard bSpans = new Bitboard(((bPawns.GetData() >> 9) & (0xFEFEFEFEFEFEFEFE)) | (bPawns.GetData() >> 7) & (0x7F7F7F7F7F7F7F7F)); //squares attacked by black pawns
+            return BitOperations.PopCount(stops.GetData() & bSpans.GetData() & ~wSpans.GetData());
+        }
+
+        public static float PawnIsolated(Bitboard Pawns, int Player)
+        {
+            float score = 0;
+            Bitboard Checks = new Bitboard(Pawns.GetData());
+            for (int file = 1; file < 7; file++) // to not include the edge files
+            {
+                if ((Pawns.GetData() & ((0x0101010101010101UL << file-1) | (0x0101010101010101UL << file+1))) == 0 && (Pawns.GetData() & (0x0101010101010101UL << file)) != 0)
+                {
+                    score += 1;
+                }
+            }
+            if (((Pawns.GetData() & (0x0101010101010101UL << 1)) == 0) & ((Pawns.GetData() & 0x0101010101010101UL) != 0)) //for the edge tiles, this needs different logic to stop overflow wrapping around the board
+            {
+                score += 1; //for the A-file
+            }
+            if (((Pawns.GetData() & (0x0101010101010101UL << 6)) == 0) & ((Pawns.GetData() & (0x0101010101010101UL<<7)) != 0)) // for the H file
+            {
+                score += 1;
+            }
+            return score;
+        }
+
+        public static float PawnDoubles(Bitboard Pawns, int Player) 
+        {
+            int doubles = 0;
+            for (int file = 0; file < 8; file++) 
+            {
+                if (BitOperations.PopCount(Pawns.GetData() & (0x0101010101010101UL << file)) > 1) //checking for the number of pawns in the file using the essentially the active bits method without having to create a new bitboard object
+                {
+                    doubles++;
+                }
+            }
+            return doubles;
         }
 
         public static int PawnChain(Bitboard Pawns, int Player)

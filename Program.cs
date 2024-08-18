@@ -9,20 +9,20 @@ namespace ChessEngine
         {
             //setup stuff
             Board board = new Board();
-            board.PrintBoard();
             PreComputeData.InitializeAttackBitboards();
             TranspositionTable TTable = new TranspositionTable();
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
-            for (int i = 1; i < 8; i++)
-            {
-                Console.WriteLine("perft: " + i + " result: " + Search.Perft(i, board));
-            }
+            board.PrintBoard();
+            Test.LoadTestPositions();
 
-            while (true)
+            Test.PerftTest(4, Test.TestPositions[4]);
+
+            //after program has been loaded
+
+            while (1==2)
             {
-                break;
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 9, TTable);
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 7, TTable);
                 board.MakeMove(BestMove);
                 //board.PrintBoard();
                 BestMove.PrintMove();

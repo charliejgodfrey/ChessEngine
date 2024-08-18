@@ -435,6 +435,9 @@ namespace ChessEngine
                         case 'K':
                             WhiteKing.SetBit(currentSquare);
                             break;
+                        // case ' ':
+                        //     ColourToMove = (FEN[currentSquare+1] == 'w' ? 0 : 1);
+                        //     break;
                         default:
                             break;
                     }
