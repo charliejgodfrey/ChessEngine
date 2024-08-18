@@ -74,7 +74,7 @@ namespace ChessEngine
 
         public static int CheckCastle(Board board, Move[] moves, int MoveNumber) // currently allows castling out of, and through check
         {
-            if (board.ColourToMove == 0 && ((board.OccupiedSquares.GetData() & 0x60) == 0) && board.WhiteShortCastle)
+            if (board.ColourToMove == 0 && ((board.OccupiedSquares.GetData() & 0x60) == 0) && board.WhiteShortCastle && !MoveGenerator.UnderAttack(board, 5) && !MoveGenerator.UnderAttack(board, 6))
             {
                 moves[MoveNumber] = new Move(0,0,0,0,1); //white short castle
                 MoveNumber++;
@@ -95,6 +95,44 @@ namespace ChessEngine
                 MoveNumber++;
             }
             return MoveNumber;
+        }
+
+        public static bool UnderAttack(Board board, int square)
+        {
+            int ColourAdd = (board.ColourToMove == 0 ? 6 : 0);
+            ulong KnightAttacks = PreComputeData.KnightAttackBitboards[square].GetData(); // where a knight could attack the king from
+            if (((KnightAttacks) & board.Pieces[1 + ColourAdd].GetData()) != 0)
+            {
+                return true;
+            }
+
+            Bitboard BishopAttacks = GenerateBishopAttacks(board, square);
+            if ((BishopAttacks.GetData() & board.Pieces[2 + ColourAdd].GetData()) != 0)
+            {
+                return true;
+            }
+
+            Bitboard RookAttacks = GenerateRookAttacks(board, square);
+            if ((RookAttacks.GetData() & board.Pieces[3 + ColourAdd].GetData()) != 0) 
+            { 
+                return true;
+            }
+
+            if (((RookAttacks.GetData() | BishopAttacks.GetData()) & board.Pieces[4 + ColourAdd].GetData()) != 0) 
+            {
+                return true;
+            }
+
+            if (((board.Pieces[ColourAdd].IsBitSet(square + 1 + (board.ColourToMove == 0 ? 8 : -8))) && square % 8 != 7) || ((board.Pieces[ColourAdd].IsBitSet(square - 1 + (board.ColourToMove == 0 ? 8 : -8))) && square % 8 != 0)) // checking if either of the attackable squares of the king from pawns are occupied
+            {
+                return true;
+            }
+
+            if ((PreComputeData.KingAttackBitboards[square].GetData() & board.Pieces[5+ ColourAdd].GetData()) != 0)
+            { 
+                return true;
+            }
+            return false;
         }
 
         public static int GenerateQueenMoves(Board board, Move[] Moves, int MoveNumber)

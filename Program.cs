@@ -13,12 +13,14 @@ namespace ChessEngine
             TranspositionTable TTable = new TranspositionTable();
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
-            board.PrintBoard();
             Test.LoadTestPositions();
+            board = new Board(Test.TestPositions[3].Fen);
+            Console.WriteLine(MoveGenerator.UnderAttack(board, 16));
 
-            Test.PerftTest(4, Test.TestPositions[4]);
+            Test.PerftTest(4, Test.TestPositions[3]);
 
             //after program has been loaded
+            board.PrintBoard();
 
             while (1==2)
             {

@@ -444,10 +444,10 @@ namespace ChessEngine
                     currentSquare++;
                 }
             }
-            if (!WhiteKing.IsBitSet(3) || !WhiteRooks.IsBitSet(0)) WhiteShortCastle = false;
-            if (!WhiteKing.IsBitSet(3) || !WhiteRooks.IsBitSet(7)) WhiteLongCastle = false;
-            if (!WhiteKing.IsBitSet(59) || !WhiteRooks.IsBitSet(56)) BlackShortCastle = false;
-            if (!WhiteKing.IsBitSet(59) || !WhiteRooks.IsBitSet(63)) BlackLongCastle = false;
+            // if (!WhiteKing.IsBitSet(3) || !WhiteRooks.IsBitSet(0)) WhiteShortCastle = false;
+            // if (!WhiteKing.IsBitSet(3) || !WhiteRooks.IsBitSet(7)) WhiteLongCastle = false;
+            // if (!WhiteKing.IsBitSet(59) || !WhiteRooks.IsBitSet(56)) BlackShortCastle = false;
+            // if (!WhiteKing.IsBitSet(59) || !WhiteRooks.IsBitSet(63)) BlackLongCastle = false;
         }
 
         public void PrintBoard()
