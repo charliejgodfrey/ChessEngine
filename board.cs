@@ -95,9 +95,9 @@ namespace ChessEngine
                 ColourToMove = (ColourToMove == 0 ? 1 : 0);
                 return;
             }
-            if (move.GetCastle() != 0)
+            if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
             {
-                this.Castle(move.GetCastle());
+                this.Castle((move.GetFlag() == 0b0010) ? 1 : 2);
                 ColourToMove = (ColourToMove == 0 ? 1 : 0);
                 return;
             }
@@ -161,6 +161,12 @@ namespace ChessEngine
             int piece = move.GetPiece();
             int flag = move.GetFlag();
             int capture = move.GetCapture();
+            if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
+            {
+                this.Uncastle((move.GetFlag() == 0b0010) ? 1 : 2);
+                ColourToMove = (ColourToMove == 0 ? 1 : 0);
+                return;
+            }
             if (ColourToMove == 1) //white unmaking the unmove
             {
                 WhitePieces.SetBit(start);
@@ -292,41 +298,115 @@ namespace ChessEngine
             //Console.WriteLine("correct zobrist: " + Hasher.Hash(this));
         }
 
+        public void Uncastle(int type)
+        {
+            if (type == 1 && this.ColourToMove == 1) //short castle for white
+            {
+                this.WhiteKing.SetData(0x10UL); //king back in position
+                this.OccupiedSquares.AND(~0x60UL); //clear the king and rook
+                this.OccupiedSquares.OR(0x90UL); //puts king and rook back
+                this.WhitePieces.AND(~0x60UL); //clear the king and rook
+                this.WhitePieces.OR(0x90UL);
+                this.WhiteRooks.ClearBit(5); //clear rook
+                this.WhiteRooks.SetBit(7); //replace rook
+                this.WhiteLongCastle = true;
+                this.WhiteShortCastle = true;
+                return;
+            }
+            if (type == 2 && this.ColourToMove == 1) //long castle for white
+            {
+                this.WhiteKing.SetData(0x10UL); //resets king position
+                this.OccupiedSquares.AND(~0x6UL); //clears the king and rook
+                this.OccupiedSquares.OR(0x11UL);
+                this.WhitePieces.AND(~0x6UL); //clears the king and rook
+                this.WhitePieces.OR(0x11UL);
+                this.WhiteRooks.ClearBit(3); //clear rook
+                this.WhiteRooks.SetBit(0);// replace rook
+                this.WhiteLongCastle = true;
+                this.WhiteShortCastle = true;
+                return;
+            }
+            if (type == 1 && this.ColourToMove == 0) //short castle for black
+            {
+                this.BlackKing.SetData(0x1000000000000000UL); //resets king position
+                this.OccupiedSquares.AND(~0x6000000000000000UL); //clears rook and king
+                this.OccupiedSquares.OR(0x9000000000000000UL);
+                this.BlackPieces.AND(~0x6000000000000000UL); //clears rook and king
+                this.BlackPieces.OR(0x9000000000000000UL);
+                this.BlackRooks.ClearBit(61);
+                this.BlackRooks.SetBit(63);
+                this.BlackShortCastle = true;
+                this.BlackLongCastle = true;
+                return;
+            }
+            if (type == 2 && this.ColourToMove == 0) //long castle for black
+            {
+                //Console.WriteLine("un long castled for black");
+                this.BlackKing.SetData(0x1000000000000000UL); //resets king position
+                this.OccupiedSquares.AND(~0x0C00000000000000UL); //clears rook and king
+                this.OccupiedSquares.OR(0x1100000000000000UL);
+                this.BlackPieces.AND(~0x0C00000000000000UL); //clears rook and king
+                this.BlackPieces.OR(0x1100000000000000UL);
+                this.BlackRooks.ClearBit(59); //clears rook from castled position
+                this.BlackRooks.SetBit(56); //puts rook back in corner
+                this.BlackShortCastle = true;
+                this.BlackLongCastle = true;
+                return;
+            }
+        }
+
         public void Castle(int type)
         {
             if (type == 1 && this.ColourToMove == 0) //short castle for white
             {
                 this.WhiteKing.SetData(0x40UL);
-                this.OccupiedSquares.AND(~0x90UL);
+                this.OccupiedSquares.AND(~0x90UL); 
+                this.OccupiedSquares.OR(0x60UL);
                 this.WhitePieces.AND(~0x90UL);
+                this.WhitePieces.OR(0x60UL);
                 this.WhiteRooks.ClearBit(7);
                 this.WhiteRooks.SetBit(5);
+                this.WhiteLongCastle = false;
+                this.WhiteShortCastle = false;
                 return;
             }
-            if (type == 2 && this.ColourToMove == 0) //short castle for white
+            if (type == 2 && this.ColourToMove == 0) //long castle for white
             {
                 this.WhiteKing.SetData(0x4UL);
                 this.OccupiedSquares.AND(~0x11UL);
+                this.OccupiedSquares.OR(0xCUL);
                 this.WhitePieces.AND(~0x11UL);
+                this.WhitePieces.OR(0xCUL);
                 this.WhiteRooks.ClearBit(0);
                 this.WhiteRooks.SetBit(3);
+                this.WhiteLongCastle = false;
+                this.WhiteShortCastle = false;
+                return;
             }
             if (type == 1 && this.ColourToMove == 1) //short castle for black
             {
                 this.BlackKing.SetData(0x4000000000000000UL);
                 this.OccupiedSquares.AND(~0x9000000000000000UL);
+                this.OccupiedSquares.OR(0x6000000000000000UL);
                 this.BlackPieces.AND(~0x9000000000000000UL);
+                this.BlackPieces.OR(0x6000000000000000UL);
                 this.BlackRooks.ClearBit(63);
                 this.BlackRooks.SetBit(61);
+                this.BlackShortCastle = false;
+                this.BlackLongCastle = false;
                 return;
             }
-            if (type == 2 && this.ColourToMove == 1) //short castle for black
+            if (type == 2 && this.ColourToMove == 1) //long castle for black
             {
                 this.BlackKing.SetData(0x400000000000000UL);
                 this.OccupiedSquares.AND(~0x1100000000000000UL);
+                this.OccupiedSquares.OR(0x0C00000000000000UL);
                 this.BlackPieces.AND(~0x1100000000000000UL);
+                this.BlackPieces.OR(0x0C00000000000000UL);
                 this.BlackRooks.ClearBit(56);
                 this.BlackRooks.SetBit(59);
+                this.BlackShortCastle = false;
+                this.BlackLongCastle = false;
                 return;
             }
         }

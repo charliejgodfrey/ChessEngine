@@ -12,9 +12,9 @@ namespace ChessEngine
                 int result = Search.Perft(i, TestBoard);
                 if (result == position.Perft[i])
                 {
-                    Console.WriteLine("perft depth: " + i + " result: passed");
+                    Console.WriteLine("perft depth: " + i + " nodes: " + result + " result: passed");
                 } else {
-                    Console.WriteLine("perft depth: " + i + " result: " + Search.Perft(i, TestBoard) + " expected result: " + position.Perft[i]);
+                    Console.WriteLine("perft depth: " + i + " result: " + result + " expected result: " + position.Perft[i]);
                 }
             }
         }

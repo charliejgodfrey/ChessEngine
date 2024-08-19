@@ -19,7 +19,7 @@ namespace ChessEngine
             MoveNumber = GeneratePawnMoves(board, Moves, MoveNumber);
             MoveNumber = GenerateKingMoves(board, Moves, MoveNumber); 
             MoveNumber = GenerateKnightMoves(board, Moves, MoveNumber);
-            //MoveNumber = CheckCastle(board, Moves, MoveNumber);
+            MoveNumber = CheckCastle(board, Moves, MoveNumber);
             return Moves;
         }
 
@@ -76,23 +76,25 @@ namespace ChessEngine
         {
             if (board.ColourToMove == 0 && ((board.OccupiedSquares.GetData() & 0x60) == 0) && board.WhiteShortCastle && !MoveGenerator.UnderAttack(board, 5) && !MoveGenerator.UnderAttack(board, 6))
             {
-                moves[MoveNumber] = new Move(0,0,0,0,1); //white short castle
+                moves[MoveNumber] = new Move(0,0,0b0010,0,0); //white short castle
                 MoveNumber++;
             }
-            if (board.ColourToMove == 0 && ((board.OccupiedSquares.GetData() & 0xE) == 0) && board.WhiteLongCastle)
+            if (board.ColourToMove == 0 && ((board.OccupiedSquares.GetData() & 0xE) == 0) && board.WhiteLongCastle && !MoveGenerator.UnderAttack(board, 2) && !MoveGenerator.UnderAttack(board,3))
             {
-                moves[MoveNumber] = new Move(0,0,0,0,2); //white long castle
+                moves[MoveNumber] = new Move(0,0,0b0011,0,0); //white long castle
                 MoveNumber++;
             }
-            if (board.ColourToMove == 1 && ((board.OccupiedSquares.GetData() & 0x6000000000000000) == 0) && board.BlackShortCastle)
+            if (board.ColourToMove == 1 && ((board.OccupiedSquares.GetData() & 0x6000000000000000) == 0) && board.BlackShortCastle && !MoveGenerator.UnderAttack(board, 61) && !MoveGenerator.UnderAttack(board, 62))
             {
-                moves[MoveNumber] = new Move(0,0,0,0,1); //black short castle
+                moves[MoveNumber] = new Move(0,0,0b0010,0,0); //black short castle
+                //Console.WriteLine("black short castle");
                 MoveNumber++;
             }
-            if (board.ColourToMove == 1 && ((board.OccupiedSquares.GetData() & 0x7000000000000000) == 0) && board.BlackLongCastle)
+            if (board.ColourToMove == 1 && ((board.OccupiedSquares.GetData() & 0x0E00000000000000) == 0) && board.BlackLongCastle && !MoveGenerator.UnderAttack(board, 58) && !MoveGenerator.UnderAttack(board,59))
             {
-                moves[MoveNumber] = new Move(0,0,0,0,2); //black long castle
+                moves[MoveNumber] = new Move(0,0,0b0011,0,0); //black long castle
                 MoveNumber++;
+                //Console.WriteLine("black long castle");
             }
             return MoveNumber;
         }
@@ -355,9 +357,9 @@ namespace ChessEngine
     public struct Move 
     {
         int Data = 0;
-        public Move(int start, int target, int flags, int piece, int capture, int castle = 0, int nullMove = 0)
+        public Move(int start, int target, int flags, int piece, int capture, int nullMove = 0)
         {
-            Data = (start | (target << 6) | (flags << 12) | (piece << 16) | (capture << 19) | (castle << 22) | (nullMove << 25)); //the first 6 bits are the start square, the next 6 the target square then the next 4 are for flags (castling, enpassant)
+            Data = (start | (target << 6) | (flags << 12) | (piece << 16) | (capture << 19) | (nullMove << 25)); //the first 6 bits are the start square, the next 6 the target square then the next 4 are for flags (castling, enpassant)
         }
         public int GetCapture() // the normal piece indicators however for no capture all bits are active (0b111)
         {

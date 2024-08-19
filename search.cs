@@ -161,6 +161,7 @@ namespace ChessEngine
         {
             if (depth == 0)
             {
+                //Program.PrintMoves(board);
                 return 1;
             }
             int positions = 0;
