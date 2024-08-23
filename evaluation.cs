@@ -14,7 +14,7 @@ namespace ChessEngine
         public static float Evaluate(Board board)
         {
             //return WeightedMaterial(board);
-            return board.Eval;
+            //return board.Eval;
             float WhitePawns = PawnEvaluationTable.Retrieve(board.WhitePawns.GetData());
             float BlackPawns = PawnEvaluationTable.Retrieve(board.BlackPawns.GetData());
             if (WhitePawns == -1000000) //not in the table
@@ -27,16 +27,141 @@ namespace ChessEngine
                 BlackPawns = EvaluatePawnStructure(board.BlackPawns, 1);
                 PawnEvaluationTable.Store(board.BlackPawns.GetData(), BlackPawns);
             }
-            return board.Eval + WhitePawns - BlackPawns;
+            float WhiteKingSafety = EvaluateKingSafety(board, 0) * 10;
+            float BlackKingSafety = EvaluateKingSafety(board, 1) * 10;
+            float PieceDefense = (DefendedMinorPieces(board, 0) - DefendedMinorPieces(board, 1)) * 5;
+            (int WhiteMobility, ulong WhiteAttacks) = EvaluateMobility(board, 0);
+            (int BlackMobility, ulong BlackAttacks) = EvaluateMobility(board, 1);
+            float Mobility = WhiteMobility/(BlackMobility+WhiteMobility) * 100;
+            float PieceCoordination = EvaluateAttackBitboard(board, WhiteAttacks, BlackAttacks) * 10;
+            return WeightedMaterial(board) + WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination;
+        }
+
+        public static float EvaluateAttackBitboard(Board board, ulong WhiteAttacks, ulong BlackAttacks)
+        {
+            int WhiteSpaceAdvantage = BitOperations.PopCount(WhiteAttacks & 0xFFFFFFFF3C000000); //attacked squares in enemey half and center
+            int BlackSpaceAdvantage = BitOperations.PopCount(BlackAttacks & 0x000000C3FFFFFFFF);
+            //piece coordination and threats
+            ulong WhiteDefendedPieces = WhiteAttacks & board.WhitePieces.GetData();
+            ulong BlackDefendedPieces = BlackAttacks & board.BlackPieces.GetData();
+            ulong WhiteUndefendedPieces = board.WhitePieces.GetData() & ~WhiteDefendedPieces;
+            ulong BlackUndefendedPieces = BlackAttacks & ~board.BlackPieces.GetData();
+            ulong WhiteThreats = WhiteAttacks & BlackUndefendedPieces;
+            ulong BlackThreats = BlackAttacks & WhiteUndefendedPieces;
+            //king safety bonuses
+            int WhiteKingSafety = BitOperations.PopCount(BlackAttacks & PreComputeData.KingAdjacents[board.WhiteKing.LSB()]);
+            int BlackKingSafety = BitOperations.PopCount(WhiteAttacks & PreComputeData.KingAdjacents[board.BlackKing.LSB()]);
+
+            double WhiteBonus = 1.5 * BitOperations.PopCount(WhiteDefendedPieces) + 2 * BitOperations.PopCount(WhiteThreats) + 0.5 * WhiteSpaceAdvantage - 1.25 * BitOperations.PopCount(WhiteUndefendedPieces) - 2.5 * WhiteKingSafety;
+            double BlackBonus = 1.5 * BitOperations.PopCount(BlackDefendedPieces) + 2 * BitOperations.PopCount(BlackThreats) + 0.5 * BlackSpaceAdvantage - 1.25 * BitOperations.PopCount(BlackUndefendedPieces) - 2.5 * BlackKingSafety;
+            return (float)(WhiteBonus - BlackBonus);
+        }
+
+        public static (int, ulong) EvaluateMobility(Board board, int Player)
+        {
+            ulong AttackedSquares = 0UL;
+            int ColourAdd = Player * 6;
+            Bitboard FriendlyPieces = (Player == 0 ? board.WhitePieces : board.BlackPieces);
+            int KnightMoves = 0;
+            Bitboard Knights = new Bitboard(board.Pieces[ColourAdd+1].GetData());
+            while (Knights.GetData() > 0) //for each knight
+            {
+                int square = Knights.LSB();
+                ulong Attacks = PreComputeData.KnightAttackBitboards[square].GetData();
+                AttackedSquares |= Attacks;
+                Attacks &= ~FriendlyPieces.GetData();
+                KnightMoves += BitOperations.PopCount(Attacks);
+                Knights.ClearBit(square);
+            }
+            
+            int BishopMoves = 0;
+            Bitboard Bishops = new Bitboard(board.Pieces[ColourAdd+2].GetData());
+            while (Bishops.GetData() > 0) //for each bishop
+            {
+                int square = Bishops.LSB();
+                ulong Attacks = MoveGenerator.GenerateBishopAttacks(board, square).GetData();
+                AttackedSquares |= Attacks;
+                Attacks &= ~FriendlyPieces.GetData();
+                BishopMoves += BitOperations.PopCount(Attacks);
+                Bishops.ClearBit(square);
+            }
+
+            int RookMoves = 0;
+            Bitboard Rooks = new Bitboard(board.Pieces[ColourAdd+3].GetData());
+            while (Rooks.GetData() > 0) //for each rook
+            {
+                int square = Rooks.LSB();
+                ulong Attacks = MoveGenerator.GenerateRookAttacks(board, square).GetData();
+                AttackedSquares |= Attacks;
+                Attacks &= ~FriendlyPieces.GetData();
+                RookMoves += BitOperations.PopCount(Attacks);
+                Rooks.ClearBit(square);
+            }
+
+            int QueenMoves = 0;
+            Bitboard Queens = new Bitboard(board.Pieces[ColourAdd+4].GetData());
+            while (Queens.GetData() > 0) //for each queen
+            {
+                int square = Queens.LSB();
+                ulong Attacks = (MoveGenerator.GenerateBishopAttacks(board, square).GetData() | MoveGenerator.GenerateRookAttacks(board, square).GetData());
+                AttackedSquares |= Attacks;
+                Attacks &= ~FriendlyPieces.GetData();
+                QueenMoves += BitOperations.PopCount(Attacks);
+                Queens.ClearBit(square);
+            }
+
+
+            return (KnightMoves + BishopMoves + RookMoves + QueenMoves/4, AttackedSquares); //to discourage getting the queen out in the opening
+        }
+
+        public static int DefendedMinorPieces(Board board, int Player)
+        {
+            int ColourAdd = (Player == 0 ? 8 : -8);
+            Bitboard Pawns = (Player == 0 ? board.WhitePawns : board.BlackPawns);
+            Bitboard PawnAttacks = new Bitboard((Pawns.GetData() << (1 + ColourAdd)) | (Pawns.GetData() << (ColourAdd - 1)));
+            int DefendedMinorPieces = BitOperations.PopCount(PawnAttacks.GetData() & (board.Pieces[Player * 6 + 1].GetData() | board.Pieces[Player * 6 + 2].GetData()));
+            return DefendedMinorPieces;
+        }
+
+        public static float OutpostEvaluation(Bitboard Pawns, int Player)
+        {
+            int ColourAdd = (Player == 0 ? 8 : -8);
+            Bitboard PawnAttacks = new Bitboard((Pawns.GetData() << (1 + ColourAdd)) | (Pawns.GetData() << (ColourAdd - 1)));
+            PawnAttacks.AND(Player == 0 ? 0xFFFFFFFF00000000 : 0x00000000FFFFFFFF); //only looking at potential outposts which would be in the other players half of the board
+            int Outposts = 0;
+            while (PawnAttacks.GetData() > 0)
+            {
+                int square = PawnAttacks.LSB();
+                if ((Pawns.GetData() & (0x1010101010101010UL << square % 8))==0) //is on a half open file
+                {
+                    Outposts++;
+                }
+                PawnAttacks.ClearBit(square);
+            }
+            return Outposts;
+        }
+
+        public static float EvaluateKingSafety(Board board, int Player)
+        {
+            int PawnDefenseScore = BitOperations.PopCount(board.Pieces[Player*6].GetData() & (0x7UL << (board.Pieces[Player * 6 + 5].LSB() - 1 + (Player == 0 ? 8 : -8))));
+            return PawnDefenseScore;
         }
 
         public static float EvaluatePawnStructure(Bitboard Pawns, int Player)
         {
-            //return 0;
             float score = 0;
-            score -= PawnDoubles(Pawns, Player) * 50;
-            score -= PawnIsolated(Pawns, Player) * 50;
+            score -= PawnDoubles(Pawns, Player) * 15;
+            score -= PawnIsolated(Pawns, Player) * 15;
+            score += PawnChains(Pawns) * 5;
+            score += OutpostEvaluation(Pawns, Player) * 15;
+            //score -= WhiteBackwardsPawns
             return score;
+        }
+
+        public static float PawnChains(Bitboard Pawns) //counts how many pawns in the position are defended by other pawns, meaning they're in a chain
+        {
+            int ConnectedPawns = BitOperations.PopCount(Pawns.GetData() & ((Pawns.GetData() << 9) | (Pawns.GetData() << 7)));
+            return ConnectedPawns;
         }
 
         public static float WhiteBackwardsPawns(Bitboard wPawns, Bitboard bPawns) //this needs testing
@@ -82,12 +207,7 @@ namespace ChessEngine
             return doubles;
         }
 
-        public static int PawnChain(Bitboard Pawns, int Player)
-        {
-            return 0;
-        }
-
-        public static int PawnMajorities(Bitboard WhitePawns, Bitboard BlackPawns, int Player)
+        public static int PawnMajorities(Bitboard WhitePawns, Bitboard BlackPawns, int Player) //not currently used but might implement later
         {
             Bitboard LeftWhite = new Bitboard(WhitePawns.GetData() & 0x0F0F0F0F0F0F0F0F);
             Bitboard LeftBlack = new Bitboard(BlackPawns.GetData() & 0x0F0F0F0F0F0F0F0F);

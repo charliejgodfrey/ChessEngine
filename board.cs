@@ -13,10 +13,10 @@ namespace ChessEngine
         public int ColourToMove = 0; // 0 for white 1 for black
         public int EnPassantSquare;
         public int MoveNumber;
-        public bool WhiteShortCastle = true;
-        public bool WhiteLongCastle = true;
-        public bool BlackShortCastle = true;
-        public bool BlackLongCastle = true;
+        public bool WhiteShortCastle = false;
+        public bool WhiteLongCastle = false;
+        public bool BlackShortCastle = false;
+        public bool BlackLongCastle = false;
         public int[] PieceCount = new int[10];
         public float Eval = 0;
         public ZobristHasher Hasher = new ZobristHasher();
@@ -83,13 +83,6 @@ namespace ChessEngine
 
         public void MakeMove(Move move) 
         {
-            // if (move.GetTarget() == 49)
-            // {
-            //     PrintBoard();
-            //     move.PrintMove();
-            // }
-
-
             if (move.GetNullMove() == 1)
             {
                 ColourToMove = (ColourToMove == 0 ? 1 : 0);
@@ -98,6 +91,8 @@ namespace ChessEngine
             if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
             {
                 this.Castle((move.GetFlag() == 0b0010) ? 1 : 2);
+                UpdateEval(move);
+                UpdateZobrist(move);    
                 ColourToMove = (ColourToMove == 0 ? 1 : 0);
                 return;
             }
@@ -128,6 +123,7 @@ namespace ChessEngine
                 //for the piece specific bitboards
                 Pieces[piece + 6].ClearBit(start); //the +6 is for offsetting the piece to the index for the black pieces
                 Pieces[piece + 6].SetBit(target);
+                if (BlackKing.ActiveBits() > 1 && check)
                 //taking into account captures
                 if (capture != 0b111) Pieces[capture].ClearBit(target);
                 //for (int i = 0; i<6;i++) Pieces[i].ClearBit(target);
@@ -136,13 +132,14 @@ namespace ChessEngine
             //other checks:
             if (flag == 0b0001) //double pawn push
             {
-                EnPassantSquare = target + (ColourToMove == 0 ? 8 : -8); //the offset means that the square is referring to where an enpassanting pawn would move to - not where the piece is being captured
+                EnPassantSquare = target + (ColourToMove == 0 ? -8 : 8); //the offset means that the square is referring to where an enpassanting pawn would move to - not where the piece is being captured
             } 
             else EnPassantSquare = -1;
             if (flag == 0b0101) //en passant capture
             {
                 if (ColourToMove == 0) BlackPawns.ClearBit(target - 8);
                 else WhitePawns.ClearBit(target + 8);
+                EnPassantSquare = -1;
             }
             if (flag >= 0b1000) //promotion
             {
@@ -215,7 +212,7 @@ namespace ChessEngine
 
         public void UpdateEval(Move move)
         {
-            if (move.GetFlag() == 0b0101 || move.GetFlag() >= 0b1000)
+            if (move.GetFlag() == 0b0101 || move.GetFlag() >= 0b1000 || move.GetFlag() == 0b0010 || move.GetFlag() == 0b0011)
             {
                 Eval = Evaluation.WeightedMaterial(this);
                 return;
@@ -282,7 +279,7 @@ namespace ChessEngine
         {
             //Console.WriteLine("prior zobby: " + Zobrist);
             int colourAdd = (ColourToMove == 0 ? 0 : 6); // determines adding constant if it is black moving
-            if (move.GetFlag() == 0b0101 || move.GetFlag() >= 0b1000)
+            if (move.GetFlag() == 0b0101 || move.GetFlag() >= 0b1000 || move.GetFlag() == 0b0010 || move.GetFlag() == 0b0011)
             {
                 Zobrist = Hasher.Hash(this);
                 return;

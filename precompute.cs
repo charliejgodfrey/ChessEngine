@@ -17,6 +17,7 @@ namespace ChessEngine
         public static ulong[] BishopMagics = new ulong[64];
         public static Bitboard[,] RookAttacks = new Bitboard[64,8196];
         public static Bitboard[,] BishopAttacks = new Bitboard[64,8196];
+        public static ulong[] KingAdjacents = new ulong[64];
 
         public static void InitializeAttackBitboards()
         {
@@ -26,6 +27,29 @@ namespace ChessEngine
             PreComputeRookMasks();
             PreComputeBishopMasks();
             LoadMagics();
+            PreComputeKingAdjacents();
+        }
+
+        public static void PreComputeKingAdjacents()
+        {
+            for (int s = 0; s < 64; s++)
+            {
+                int file = s % 8;
+                int rank = s / 8;
+                ulong SurroundingSquares = 0UL;
+                SurroundingSquares |= 1UL << s;
+                for (int f = -1; f <= 1; f++)
+                {
+                    for (int r = -1; r <= 1; r++)
+                    {
+                        if (file + f >= 0 && file + f < 8 && rank + r < 8 && rank + r >= 0)
+                        {
+                            SurroundingSquares |= 1UL << (rank + r) * 8 + file + f;
+                        }
+                    }
+                }
+                KingAdjacents[s] = SurroundingSquares;
+            }
         }
 
         public static void ComputeMagics() //recalculates a set of fresh magic numbers 

@@ -137,6 +137,7 @@ namespace ChessEngine
             return false;
         }
 
+
         public static int GenerateQueenMoves(Board board, Move[] Moves, int MoveNumber)
         {
             Bitboard QueenLocations = (board.ColourToMove == 0 ? new Bitboard(board.WhiteQueens.GetData()) : new Bitboard(board.BlackQueens.GetData()));
@@ -294,11 +295,11 @@ namespace ChessEngine
             Bitboard WestCapture;
             if (board.ColourToMove == 0) //turn is white
             {
-                EastCapture = new Bitboard((board.WhitePawns.GetData()) & (board.BlackPieces.GetData() >>9) & 0x7F7F7F7F7F7F7F7F); //this essentially checks there is a piece that can be captured and accounts for overflow stuff
-                WestCapture = new Bitboard((board.WhitePawns.GetData()) & (board.BlackPieces.GetData() >>7) & 0xFEFEFEFEFEFEFEFE); //does the same thing for the other direction
+                EastCapture = new Bitboard((board.WhitePawns.GetData()) & ((board.BlackPieces.GetData() | 1UL<<board.EnPassantSquare) >>9) & 0x7F7F7F7F7F7F7F7F); //this essentially checks there is a piece that can be captured and accounts for overflow stuff
+                WestCapture = new Bitboard((board.WhitePawns.GetData()) & ((board.BlackPieces.GetData() | 1UL<<board.EnPassantSquare) >>7) & 0xFEFEFEFEFEFEFEFE); //does the same thing for the other direction
             } else { //blacks turn
-                WestCapture = new Bitboard((board.BlackPawns.GetData()) & (board.WhitePieces.GetData() <<9) & 0xFEFEFEFEFEFEFEFE); //this essentially checks there is a piece that can be captured and accounts for overflow stuff
-                EastCapture = new Bitboard((board.BlackPawns.GetData()) & (board.WhitePieces.GetData() <<7) & 0x7F7F7F7F7F7F7F7F); //does the same thing for the other direction
+                WestCapture = new Bitboard((board.BlackPawns.GetData()) & ((board.WhitePieces.GetData() | 1UL<<board.EnPassantSquare) <<9) & 0xFEFEFEFEFEFEFEFE); //this essentially checks there is a piece that can be captured and accounts for overflow stuff
+                EastCapture = new Bitboard((board.BlackPawns.GetData()) & ((board.WhitePieces.GetData() | 1UL<<board.EnPassantSquare) <<7) & 0x7F7F7F7F7F7F7F7F); //does the same thing for the other direction
             }
             //WestCapture.PrintData();
 
@@ -309,7 +310,7 @@ namespace ChessEngine
                 int capture = board.GetPiece(target, (board.ColourToMove == 0 ?  1 : 0));
                 if (board.ColourToMove == 0 ? startSquare < 56 : startSquare >= 8) //isn't a promotion
                 {
-                    Moves[MoveNumber] = new Move(startSquare, target, 0b0100, 0b000, capture);
+                    Moves[MoveNumber] = new Move(startSquare, target, (target == board.EnPassantSquare ? 0b0101 : 0b0100), 0b000, capture);
                     MoveNumber++;
                 } else {
                     AddPromotions(startSquare, target, Moves, MoveNumber, capture);
@@ -324,7 +325,7 @@ namespace ChessEngine
                 int capture = board.GetPiece(target, (board.ColourToMove == 0 ?  1 : 0));
                 if (board.ColourToMove == 0 ? startSquare < 48 : startSquare >= 16) //isn't a promotion
                 {
-                    Moves[MoveNumber] = new Move(startSquare, target, 0b0100, 0b000, capture);
+                    Moves[MoveNumber] = new Move(startSquare, target, (target == board.EnPassantSquare ? 0b0101 : 0b0100), 0b000, capture);
                     MoveNumber++;
                 } else {
                     AddPromotions(startSquare, target, Moves, MoveNumber, capture);
