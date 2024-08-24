@@ -27,33 +27,34 @@ namespace ChessEngine
                 BlackPawns = EvaluatePawnStructure(board.BlackPawns, 1);
                 PawnEvaluationTable.Store(board.BlackPawns.GetData(), BlackPawns);
             }
-            float WhiteKingSafety = EvaluateKingSafety(board, 0) * 10;
-            float BlackKingSafety = EvaluateKingSafety(board, 1) * 10;
-            float PieceDefense = (DefendedMinorPieces(board, 0) - DefendedMinorPieces(board, 1)) * 5;
-            (int WhiteMobility, ulong WhiteAttacks) = EvaluateMobility(board, 0);
-            (int BlackMobility, ulong BlackAttacks) = EvaluateMobility(board, 1);
-            float Mobility = WhiteMobility/(BlackMobility+WhiteMobility) * 100;
-            float PieceCoordination = EvaluateAttackBitboard(board, WhiteAttacks, BlackAttacks) * 10;
+            float WhiteKingSafety = 0;// EvaluateKingSafety(board, 0) * 10; not sure this actually helps
+            float BlackKingSafety = 0;//EvaluateKingSafety(board, 1) * 10;
+            float PieceDefense = (DefendedMinorPieces(board, 0) - DefendedMinorPieces(board, 1)) * 4;
+            (float WhiteMobility, ulong WhiteAttacks) = EvaluateMobility(board, 0);
+            (float BlackMobility, ulong BlackAttacks) = EvaluateMobility(board, 1);
+            float Mobility = (WhiteMobility/BlackMobility - 1) * 35;
+            float PieceCoordination = EvaluateAttackBitboard(board, WhiteAttacks, BlackAttacks) * 7;
+            //Console.WriteLine("Mobility Score: " + Mobility + " Piece Coordination: " + PieceCoordination + " Piece Defense: " + PieceDefense + " wpawn: " + WhitePawns + " bpawn: " + BlackPawns);
+            //Console.WriteLine("sum of non material: " + (WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination));
             return WeightedMaterial(board) + WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination;
         }
 
         public static float EvaluateAttackBitboard(Board board, ulong WhiteAttacks, ulong BlackAttacks)
         {
             int WhiteSpaceAdvantage = BitOperations.PopCount(WhiteAttacks & 0xFFFFFFFF3C000000); //attacked squares in enemey half and center
-            int BlackSpaceAdvantage = BitOperations.PopCount(BlackAttacks & 0x000000C3FFFFFFFF);
+            int BlackSpaceAdvantage = BitOperations.PopCount(BlackAttacks & 0x0000003CFFFFFFFF);
             //piece coordination and threats
             ulong WhiteDefendedPieces = WhiteAttacks & board.WhitePieces.GetData();
             ulong BlackDefendedPieces = BlackAttacks & board.BlackPieces.GetData();
             ulong WhiteUndefendedPieces = board.WhitePieces.GetData() & ~WhiteDefendedPieces;
-            ulong BlackUndefendedPieces = BlackAttacks & ~board.BlackPieces.GetData();
+            ulong BlackUndefendedPieces = board.BlackPieces.GetData() & ~BlackDefendedPieces;
             ulong WhiteThreats = WhiteAttacks & BlackUndefendedPieces;
             ulong BlackThreats = BlackAttacks & WhiteUndefendedPieces;
             //king safety bonuses
             int WhiteKingSafety = BitOperations.PopCount(BlackAttacks & PreComputeData.KingAdjacents[board.WhiteKing.LSB()]);
             int BlackKingSafety = BitOperations.PopCount(WhiteAttacks & PreComputeData.KingAdjacents[board.BlackKing.LSB()]);
-
-            double WhiteBonus = 1.5 * BitOperations.PopCount(WhiteDefendedPieces) + 2 * BitOperations.PopCount(WhiteThreats) + 0.5 * WhiteSpaceAdvantage - 1.25 * BitOperations.PopCount(WhiteUndefendedPieces) - 2.5 * WhiteKingSafety;
-            double BlackBonus = 1.5 * BitOperations.PopCount(BlackDefendedPieces) + 2 * BitOperations.PopCount(BlackThreats) + 0.5 * BlackSpaceAdvantage - 1.25 * BitOperations.PopCount(BlackUndefendedPieces) - 2.5 * BlackKingSafety;
+            double WhiteBonus = 1.5 * BitOperations.PopCount(WhiteDefendedPieces) + 2 * BitOperations.PopCount(WhiteThreats) + 0.25 * WhiteSpaceAdvantage - 1.25 * BitOperations.PopCount(WhiteUndefendedPieces) - 2.5 * WhiteKingSafety;
+            double BlackBonus = 1.5 * BitOperations.PopCount(BlackDefendedPieces) + 2 * BitOperations.PopCount(BlackThreats) + 0.25 * BlackSpaceAdvantage - 1.25 * BitOperations.PopCount(BlackUndefendedPieces) - 2.5 * BlackKingSafety;
             return (float)(WhiteBonus - BlackBonus);
         }
 
@@ -109,8 +110,6 @@ namespace ChessEngine
                 QueenMoves += BitOperations.PopCount(Attacks);
                 Queens.ClearBit(square);
             }
-
-
             return (KnightMoves + BishopMoves + RookMoves + QueenMoves/4, AttackedSquares); //to discourage getting the queen out in the opening
         }
 
@@ -152,8 +151,8 @@ namespace ChessEngine
             float score = 0;
             score -= PawnDoubles(Pawns, Player) * 15;
             score -= PawnIsolated(Pawns, Player) * 15;
-            score += PawnChains(Pawns) * 5;
-            score += OutpostEvaluation(Pawns, Player) * 15;
+            score += PawnChains(Pawns) * 3;
+            score += OutpostEvaluation(Pawns, Player) * 10;
             //score -= WhiteBackwardsPawns
             return score;
         }

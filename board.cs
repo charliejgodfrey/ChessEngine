@@ -123,7 +123,6 @@ namespace ChessEngine
                 //for the piece specific bitboards
                 Pieces[piece + 6].ClearBit(start); //the +6 is for offsetting the piece to the index for the black pieces
                 Pieces[piece + 6].SetBit(target);
-                if (BlackKing.ActiveBits() > 1 && check)
                 //taking into account captures
                 if (capture != 0b111) Pieces[capture].ClearBit(target);
                 //for (int i = 0; i<6;i++) Pieces[i].ClearBit(target);
