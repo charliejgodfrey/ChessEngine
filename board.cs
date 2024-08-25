@@ -10,7 +10,7 @@ namespace ChessEngine
     { 
         public const string DefaultFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"; //this is the default chess starting position
 
-        public int ColourToMove = 1; // 0 for white 1 for black
+        public int ColourToMove = 0; // 0 for white 1 for black
         public int EnPassantSquare;
         public int MoveNumber;
         public bool WhiteShortCastle = false;
@@ -214,7 +214,9 @@ namespace ChessEngine
                     EnPassantSquare = (target + 8);
                 }
             }
-
+            if (flag == 0b0001) { //double pawn push
+                EnPassantSquare = -1;
+            }
             UnupdateEval(move);
             if (flag == 0 || flag == 0b0100 || flag == 0b0001) {
                 ColourToMove = (ColourToMove == 0 ? 1 : 0);
