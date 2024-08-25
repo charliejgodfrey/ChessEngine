@@ -14,41 +14,35 @@ namespace ChessEngine
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             Test.LoadTestPositions();
-            board = new Board();
+            board = new Board("r1b3kr/1pp1qpp1/p1n1p2p/7n/1P1PP3/P1QBBN1P/4KPP1/R6R");
             board.PrintBoard();
             board.Eval = Evaluation.WeightedMaterial(board);
             Console.WriteLine(MoveGenerator.UnderAttack(board, 58));
-            //Test.PerftTest(6, Test.TestPositions[0]);
-            // Test.PerftTest(4, Test.TestPositions[1]);
-            // Test.PerftTest(4, Test.TestPositions[2]);
-            // Test.PerftTest(4, Test.TestPositions[3]);
-            // Test.PerftTest(4, Test.TestPositions[4]);
 
             //after program has been loaded
-            // Bitboard test = new Bitboard(PreComputeData.KingAdjacents[35]);
-            // test.PrintData();
-            // board.PrintBoard();
-            //PrintMoves(board);
 
             while (1==1)
             {
-                Console.WriteLine("board eval: " + board.Eval);
-                Move move = GetUserMove(board);
-                Console.WriteLine(board.Zobrist);
-                board.MakeMove(move);
-                move.PrintMove();
-                board.PrintBoard();
-                Console.WriteLine(board.Zobrist);
-                board.UnmakeMove(move);
-                Console.WriteLine(board.Zobrist);
-
+            //     Console.WriteLine("board eval: " + board.Eval);
+            //     Move move = GetUserMove(board);
+            //     Console.WriteLine(board.Zobrist);
+            //     board.MakeMove(move);
+            //     Console.WriteLine("update zobrist: " + board.Zobrist);
+            //     Console.WriteLine("correct zobrist: " + board.Hasher.Hash(board));
+            //     board.PrintBoard();
+            //     board.UnmakeMove(move);
+            //     Console.WriteLine("update zobrist: " + board.Zobrist);
+            // Console.WriteLine("correct zobrist: " + board.Hasher.Hash(board));
+            //     break;
 
                 (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 7, TTable);
                 board.MakeMove(BestMove);
                 board.PrintBoard();
                 BestMove.PrintMove();
                 Console.WriteLine("Computer Evaluation Assessment: " + (Eval/100));
-                break;
+                Console.WriteLine("updated zobrist: " + board.Zobrist);
+                Console.WriteLine("true zobrist: " + board.Hasher.Hash(board));
+                //break;
                 //Evaluation.HistoryTable = new int[64, 64, 16];
 
                 // (BestMove, Eval, PV) = Search.IterativeDeepeningSearch(board, 7, TTable);

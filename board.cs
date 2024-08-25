@@ -10,7 +10,7 @@ namespace ChessEngine
     { 
         public const string DefaultFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"; //this is the default chess starting position
 
-        public int ColourToMove = 0; // 0 for white 1 for black
+        public int ColourToMove = 1; // 0 for white 1 for black
         public int EnPassantSquare;
         public int MoveNumber;
         public bool WhiteShortCastle = false;
@@ -86,6 +86,7 @@ namespace ChessEngine
             if (move.GetNullMove() == 1)
             {
                 ColourToMove = (ColourToMove == 0 ? 1 : 0);
+                Zobrist ^= Hasher.SideToMove;
                 return;
             }
             if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
@@ -146,7 +147,7 @@ namespace ChessEngine
                 Pieces[(ColourToMove == 0 ? 1 : 7)].ClearBit(target); //pawn bitboard
             }
             UpdateEval(move);
-            UpdateZobrist(move);    
+            UpdateZobrist(move);
             ColourToMove = (ColourToMove == 0 ? 1 : 0);
         }
 
@@ -160,7 +161,9 @@ namespace ChessEngine
             if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
             {
                 this.Uncastle((move.GetFlag() == 0b0010) ? 1 : 2);
-                ColourToMove = (ColourToMove == 0 ? 1 : 0);
+                UpdateEval(move);
+                UpdateZobrist(move);
+                ColourToMove = (ColourToMove == 0 ? 1 : 0); //because the zobrist is made from scratch including a move change    
                 return;
             }
             if (ColourToMove == 1) //white unmaking the unmove
@@ -183,6 +186,10 @@ namespace ChessEngine
                 } else {
                     Pieces[piece].SetBit(start);
                 }
+                if (flag == 0b0101) { //en passant
+                    BlackPawns.SetBit(target - 8);
+                    EnPassantSquare = target - 8;
+                }
             } else {
                 BlackPieces.SetBit(start);
                 BlackPieces.ClearBit(target);
@@ -202,11 +209,20 @@ namespace ChessEngine
                 } else {
                     Pieces[piece+6].SetBit(start);
                 }
+                if (flag == 0b0101) { //en passant
+                    WhitePawns.SetBit(target + 8);
+                    EnPassantSquare = (target + 8);
+                }
             }
 
             UnupdateEval(move);
-            UpdateZobrist(move);
-            ColourToMove = (ColourToMove == 0 ? 1 : 0);
+            if (flag == 0 || flag == 0b0100 || flag == 0b0001) {
+                ColourToMove = (ColourToMove == 0 ? 1 : 0);
+                UpdateZobrist(move);
+            } else {
+                UpdateZobrist(move);
+                ColourToMove = (ColourToMove == 0 ? 1 : 0);
+            }
         }
 
         public void UpdateEval(Move move)
@@ -278,9 +294,13 @@ namespace ChessEngine
         {
             //Console.WriteLine("prior zobby: " + Zobrist);
             int colourAdd = (ColourToMove == 0 ? 0 : 6); // determines adding constant if it is black moving
+            //if (unmove) colourAdd = (colourAdd == 0 ? 6 : 0);
             if (move.GetFlag() == 0b0101 || move.GetFlag() >= 0b1000 || move.GetFlag() == 0b0010 || move.GetFlag() == 0b0011)
             {
                 Zobrist = Hasher.Hash(this);
+                Zobrist ^= Hasher.SideToMove; //this is because UpdateZobrist is called before ColourToMove is updated
+                // Console.WriteLine("manual update zobrist: " + Zobrist);
+                // Console.WriteLine("correct zobrist: " + Hasher.Hash(this));
                 return;
             }
             Zobrist ^= Hasher.ZobristTable[move.GetPiece()+colourAdd][move.GetStart()];
@@ -290,8 +310,6 @@ namespace ChessEngine
                 Zobrist ^= Hasher.ZobristTable[move.GetCapture() + (ColourToMove == 0 ? 6 : 0)][move.GetTarget()];
             }
             Zobrist ^= Hasher.SideToMove;
-            //Console.WriteLine("update zobrist: " + Zobrist);
-            //Console.WriteLine("correct zobrist: " + Hasher.Hash(this));
         }
 
         public void Uncastle(int type)

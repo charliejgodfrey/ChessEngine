@@ -301,14 +301,13 @@ namespace ChessEngine
                 WestCapture = new Bitboard((board.BlackPawns.GetData()) & ((board.WhitePieces.GetData() | 1UL<<board.EnPassantSquare) <<9) & 0xFEFEFEFEFEFEFEFE); //this essentially checks there is a piece that can be captured and accounts for overflow stuff
                 EastCapture = new Bitboard((board.BlackPawns.GetData()) & ((board.WhitePieces.GetData() | 1UL<<board.EnPassantSquare) <<7) & 0x7F7F7F7F7F7F7F7F); //does the same thing for the other direction
             }
-            //WestCapture.PrintData();
 
             while (EastCapture.GetData() > 0) //for all the capturing pawns to the right
             {
                 int startSquare = EastCapture.LSB();
                 int target = startSquare + 1 + (board.ColourToMove == 0 ? 8 : -8);
                 int capture = board.GetPiece(target, (board.ColourToMove == 0 ?  1 : 0));
-                if (board.ColourToMove == 0 ? startSquare < 56 : startSquare >= 8) //isn't a promotion
+                if (board.ColourToMove == 0 ? startSquare < 48 : startSquare > 15) //isn't a promotion
                 {
                     Moves[MoveNumber] = new Move(startSquare, target, (target == board.EnPassantSquare ? 0b0101 : 0b0100), 0b000, capture);
                     MoveNumber++;

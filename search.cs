@@ -13,8 +13,7 @@ namespace ChessEngine
             Move[] PrincipleVariation = new Move[maxDepth];
             for (int depth = 1; depth <= maxDepth; depth++)
             {
-                //Console.WriteLine("Depth Currently Searching..." + depth);
-                //LMRThreshold = 3*(maxDepth - depth);
+                LMRThreshold = 10 - depth;
                 (BestMove, Eval, Move[] PV) = AlphaBeta(board, depth, TTable);
                 Evaluation.InitializeKillerMoves(); //clear killer moves
                 PrincipleVariation = PV;
@@ -34,6 +33,7 @@ namespace ChessEngine
 
             if (entry != null) //transposition table stuff
             {
+                //Console.WriteLine("transposition");
                 if (entry.NodeType == 0 && entry.Depth >= Depth) // exact value
                 {
                     return (NullMove, entry.Evaluation, EmptyVariation);
@@ -89,7 +89,7 @@ namespace ChessEngine
                 Move TopMove;
                 float Score;
                 Move[] PV;
-                if (i > LMRThreshold && Depth > 1 && Depth < 6) // idea of this is to reduce search of bad variations
+                if (i > LMRThreshold && Depth > 1) // idea of this is to reduce search of bad variations
                 {
                     (TopMove, Score, PV) = AlphaBeta(board, Depth - 2, TTable, -Beta, -Alpha);
                 } else { // if it looks like a move worth searching

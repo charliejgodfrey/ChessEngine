@@ -28,7 +28,7 @@ namespace ChessEngine
                     if (board.Pieces[p].IsBitSet(i)) hash ^= ZobristTable[p][i];
                 }
             }
-            hash ^= SideToMove;
+            if (board.ColourToMove == 1) hash ^= SideToMove;
             return hash;
         }
     }
