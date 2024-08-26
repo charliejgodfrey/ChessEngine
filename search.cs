@@ -136,7 +136,7 @@ namespace ChessEngine
 
             Alpha = ((Alpha > Eval) ? Alpha : Eval);
 
-            Move[] moves = MoveGenerator.GenerateMoves(board); //can incorperate specialist function for only captures at some point
+            Move[] moves = MoveGenerator.GenerateMoves(board, true); //can incorperate specialist function for only captures at some point
 
             for (int i = 0; i < 218; i++)
             {

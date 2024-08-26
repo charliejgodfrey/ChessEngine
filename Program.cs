@@ -30,11 +30,12 @@ namespace ChessEngine
                 //break;
                 //Evaluation.HistoryTable = new int[64, 64, 16];
 
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 7, TTable);
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 9, TTable);
                 board.MakeMove(BestMove);
                 board.PrintBoard();
                 BestMove.PrintMove();
                 Console.WriteLine("Computer Evaluation Assessment: " + (Eval/100));
+                break;
               //  break;
                 // Console.WriteLine("eval percentage from positional: " + (Evaluation.avgPositional / (Evaluation.avgPositional + Evaluation.avgMaterial)));
                 // Console.WriteLine("avergae difference: " + (Evaluation.avgDiffer/Evaluation.count / 100));
