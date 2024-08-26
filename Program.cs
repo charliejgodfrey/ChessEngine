@@ -14,7 +14,7 @@ namespace ChessEngine
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             Test.LoadTestPositions();
-            board = new Board();
+            board = new Board("r1bqkb1r/pppppppp/2n2n2/3P4/4P3/8/PPP2PPP/RNBQKBNR");
             board.PrintBoard();
             board.Eval = Evaluation.WeightedMaterial(board);
 
@@ -22,36 +22,24 @@ namespace ChessEngine
 
             while (1==1)
             {
-                Console.WriteLine("board eval: " + board.Eval);
-                Move move = GetUserMove(board);
-                Console.WriteLine(board.Zobrist);
-                board.MakeMove(move);
-                Console.WriteLine("update zobrist: " + board.Zobrist);
-                Console.WriteLine("correct zobrist: " + board.Hasher.Hash(board));
-                board.PrintBoard();
-            //     board.UnmakeMove(move);
-            //     Console.WriteLine("update zobrist: " + board.Zobrist);
-            // Console.WriteLine("correct zobrist: " + board.Hasher.Hash(board));
-                board.BlackPawns.PrintData();
-                board.WhitePawns.PrintData();
 
-            //     break;
+                // Move move = GetUserMove(board);
+                // board.MakeMove(move);
+                // board.PrintBoard();
 
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 8, TTable);
-                board.BlackPawns.PrintData();
-                board.WhitePawns.PrintData();
+                //break;
+                //Evaluation.HistoryTable = new int[64, 64, 16];
+
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 7, TTable);
                 board.MakeMove(BestMove);
                 board.PrintBoard();
                 BestMove.PrintMove();
                 Console.WriteLine("Computer Evaluation Assessment: " + (Eval/100));
-                //break;
-                //Evaluation.HistoryTable = new int[64, 64, 16];
-
-                // (BestMove, Eval, PV) = Search.IterativeDeepeningSearch(board, 7, TTable);
-                // board.MakeMove(BestMove);
-                // board.PrintBoard();
-                // BestMove.PrintMove();
-                // Console.WriteLine("Computer Evaluation Assessment: " + (Eval/100));
+              //  break;
+                // Console.WriteLine("eval percentage from positional: " + (Evaluation.avgPositional / (Evaluation.avgPositional + Evaluation.avgMaterial)));
+                // Console.WriteLine("avergae difference: " + (Evaluation.avgDiffer/Evaluation.count / 100));
+                // Evaluation.avgPositional = 0;
+                // Evaluation.avgMaterial = 0;
                 // //break;
                 // Evaluation.HistoryTable = new int[64, 64, 16];
                 //board.RefreshBitboardConfiguration();

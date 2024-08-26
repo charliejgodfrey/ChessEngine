@@ -11,9 +11,14 @@ namespace ChessEngine
         public static int[,,] HistoryTable = new int[64, 64, 16]; //stores how good moves are shown to have been in prior searches
         public static Move[][] KillerMoves = new Move[128][];
 
+        public static float avgMaterial = 0;
+        public static float avgPositional = 0;
+        public static float avgDiffer = 0;
+        public static int count = 0;
+
         public static float Evaluate(Board board)
         {
-            return WeightedMaterial(board);
+            //return WeightedMaterial(board);
             //return board.Eval;
             float WhitePawns = PawnEvaluationTable.Retrieve(board.WhitePawns.GetData());
             float BlackPawns = PawnEvaluationTable.Retrieve(board.BlackPawns.GetData());
@@ -32,11 +37,26 @@ namespace ChessEngine
             float PieceDefense = (DefendedMinorPieces(board, 0) - DefendedMinorPieces(board, 1)) * 4;
             (float WhiteMobility, ulong WhiteAttacks) = EvaluateMobility(board, 0);
             (float BlackMobility, ulong BlackAttacks) = EvaluateMobility(board, 1);
-            float Mobility = (WhiteMobility/BlackMobility - 1) * 35;
-            float PieceCoordination = EvaluateAttackBitboard(board, WhiteAttacks, BlackAttacks) * 7;
+            float Mobility = ((WhiteMobility+1)/(BlackMobility+1) - 1) * 100;
+            float PieceCoordination = EvaluateAttackBitboard(board, WhiteAttacks, BlackAttacks) * 10;
+            float Pins = (BitOperations.PopCount(DetectPinnedPieces(board, BlackAttacks, 0)) - BitOperations.PopCount(DetectPinnedPieces(board, WhiteAttacks, 1))) * 20;
+            float Material = WeightedMaterial(board);
+            // avgMaterial += Math.Abs(Material);
+            // avgPositional += Math.Abs(WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination);
+            // avgDiffer += Math.Abs((WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination));
+            // count++;
             //Console.WriteLine("Mobility Score: " + Mobility + " Piece Coordination: " + PieceCoordination + " Piece Defense: " + PieceDefense + " wpawn: " + WhitePawns + " bpawn: " + BlackPawns);
             //Console.WriteLine("sum of non material: " + (WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination));
-            return WeightedMaterial(board) + WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination;
+            return Material + WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination;
+        }
+
+        public static ulong DetectPinnedPieces(Board board, ulong EnemyAttacks, int Player) //finds the pieces of the players colour that are pinned
+        {
+            int KingSquare = board.Pieces[Player * 6 + 5].LSB();
+            ulong UnderAttack = (Player == 0 ? board.WhitePieces.GetData() : board.BlackPieces.GetData()) & EnemyAttacks;
+            ulong KingLines = (MoveGenerator.GenerateBishopAttacks(board, KingSquare).GetData() | MoveGenerator.GenerateRookAttacks(board, KingSquare).GetData());
+            ulong Pins = KingLines & UnderAttack;
+            return Pins;
         }
 
         public static float EvaluateAttackBitboard(Board board, ulong WhiteAttacks, ulong BlackAttacks)

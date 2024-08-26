@@ -20,56 +20,112 @@ namespace ChessEngine
             MoveNumber = GenerateKingMoves(board, Moves, MoveNumber); 
             MoveNumber = GenerateKnightMoves(board, Moves, MoveNumber);
             MoveNumber = CheckCastle(board, Moves, MoveNumber);
+            Moves = FilterIllegalMoves(board, Moves);
             return Moves;
         }
 
-        public static bool CheckLegal(Board board, Move Move) 
+        public static Move[] FilterIllegalMoves(Board board, Move[] Moves) //assumes it is the turn of whoevers moves they are
         {
-            board.MakeMove(Move);
-            int ColourAdd = board.ColourToMove == 1 ? 6 : 0;
-            int KingSquare = (board.ColourToMove == 1 ? board.WhiteKing.LSB() : board.BlackKing.LSB());
+            Move[] LegalMoves = new Move[218];
+            int MoveCount = 0;
+            bool IsInCheck = InCheck(board, board.ColourToMove);
+            // Console.WriteLine("in check: " + IsInCheck);
+            // board.PrintBoard();
+            if (IsInCheck)
+            {
+                for (int i = 0; i < 218; i++)
+                {
+                    if (Moves[i].GetData() == 0) break; //done all moves
+                    if (CheckLegal(board, Moves[i])) { //make special generator for getting out of check
+                        LegalMoves[MoveCount] = Moves[i];
+                        MoveCount++;
+                    }
+                }
+
+            } else {
+                Bitboard Pins = PotentialPins(board, board.ColourToMove);
+                for (int i = 0; i < 218; i++) //for each sudo legal move
+                {
+                    if (Moves[i].GetData() == 0) break; //done all moves
+                    if (CheckSudoMove(board, Moves[i], Pins)) { //doesn't need to be checked thoroughly
+                        //Moves[i].PrintMove();
+                        LegalMoves[MoveCount] = Moves[i];
+                        MoveCount++;
+                    } else {
+                        if (CheckLegal(board, Moves[i])) {
+                            LegalMoves[MoveCount] = Moves[i];
+                            MoveCount++;
+                        }
+                    }
+                }
+            }
+            return LegalMoves;
+        }
+
+        public static Bitboard PotentialPins(Board board, int Player) //pieces blocking lines of sight to the king
+        {
+            int KingSquare = board.Pieces[Player * 6 + 5].LSB();
+            ulong KingLines = (MoveGenerator.GenerateBishopAttacks(board, KingSquare).GetData() | MoveGenerator.GenerateRookAttacks(board, KingSquare).GetData());
+            Bitboard Pins = new Bitboard(KingLines & (Player == 0 ? board.WhitePieces.GetData() : board.BlackPieces.GetData()));
+            return Pins; //not all these pieces are necesarily pinned they just theoretically could be
+        }
+
+        public static bool CheckSudoMove(Board board, Move move, Bitboard Pins) //assumes king is not in check
+        {
+            if (!Pins.IsBitSet(move.GetStart()) && move.GetPiece() != 5) //piece isn't pinned and isn't the king
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public static bool InCheck(Board board, int Player)
+        {
+            int ColourAdd = Player == 0 ? 6 : 0;
+            int KingSquare = (Player == 0 ? board.WhiteKing.LSB() : board.BlackKing.LSB());
             if (KingSquare < 0 || KingSquare > 63){ Console.WriteLine("King Square l31: " + KingSquare);
-            board.PrintBoard();board.WhiteKing.PrintData();Move.PrintMove();}
+            board.PrintBoard();board.WhiteKing.PrintData();}
             ulong KnightAttacks = PreComputeData.KnightAttackBitboards[KingSquare].GetData(); // where a knight could attack the king from
             if (((KnightAttacks) & board.Pieces[1 + ColourAdd].GetData()) != 0)
             {
-                board.UnmakeMove(Move);
-                return false;
+                return true;
             }
 
             Bitboard BishopAttacks = GenerateBishopAttacks(board, KingSquare);
             if ((BishopAttacks.GetData() & board.Pieces[2 + ColourAdd].GetData()) != 0)
-            {
-                board.UnmakeMove(Move); 
-                return false;
+            { 
+                return true;
             }
 
             Bitboard RookAttacks = GenerateRookAttacks(board, KingSquare);
             if ((RookAttacks.GetData() & board.Pieces[3 + ColourAdd].GetData()) != 0) 
             {
-                board.UnmakeMove(Move); 
-                return false;
+                return true;
             }
 
             if (((RookAttacks.GetData() | BishopAttacks.GetData()) & board.Pieces[4 + ColourAdd].GetData()) != 0) 
-            {
-                board.UnmakeMove(Move); 
-                return false;
+            { 
+                return true;
             }
 
-            if (((board.Pieces[ColourAdd].IsBitSet(KingSquare + 1 + (board.ColourToMove == 1 ? 8 : -8))) && KingSquare % 8 != 7) || ((board.Pieces[ColourAdd].IsBitSet(KingSquare - 1 + (board.ColourToMove == 1 ? 8 : -8))) && KingSquare % 8 != 0)) // checking if either of the attackable squares of the king from pawns are occupied
+            if (((board.Pieces[ColourAdd].IsBitSet(KingSquare + 1 + (Player == 1 ? -8 : 8))) && KingSquare % 8 != 7) || ((board.Pieces[ColourAdd].IsBitSet(KingSquare - 1 + (Player == 1 ? -8 : 8))) && KingSquare % 8 != 0)) // checking if either of the attackable squares of the king from pawns are occupied, don't need to worry about overflow because no pawns on the 1st and 8th rank
             {
-                board.UnmakeMove(Move); 
-                return false;
+                return true;
             }
 
             if ((PreComputeData.KingAttackBitboards[KingSquare].GetData() & board.Pieces[5+ ColourAdd].GetData()) != 0)
             {
-                board.UnmakeMove(Move); 
-                return false;
+                return true;
             }
+            return false;
+        }
+
+        public static bool CheckLegal(Board board, Move Move) //will soon only be used for complex moves
+        {
+            board.MakeMove(Move);
+            bool Legal = InCheck(board, Math.Abs(board.ColourToMove - 1));
             board.UnmakeMove(Move); 
-            return true;
+            return !Legal;
         }
 
         public static int CheckCastle(Board board, Move[] moves, int MoveNumber) // currently allows castling out of, and through check
@@ -138,7 +194,7 @@ namespace ChessEngine
         }
 
 
-        public static int GenerateQueenMoves(Board board, Move[] Moves, int MoveNumber)
+        public static int GenerateQueenMoves(Board board, Move[] Moves, int MoveNumber, bool onlyCaptures = false)
         {
             Bitboard QueenLocations = (board.ColourToMove == 0 ? new Bitboard(board.WhiteQueens.GetData()) : new Bitboard(board.BlackQueens.GetData()));
             while (QueenLocations.GetData() > 0)
@@ -146,7 +202,12 @@ namespace ChessEngine
                 int startSquare = QueenLocations.LSB();
                 Bitboard QueenAttacks = GenerateRookAttacks(board, startSquare);
                 QueenAttacks.SetData(QueenAttacks.GetData() | GenerateBishopAttacks(board, startSquare).GetData()); //union of bishop moves and rook moves
-                QueenAttacks.SetData(QueenAttacks.GetData() & ~(board.ColourToMove == 0? board.WhitePieces.GetData() : board.BlackPieces.GetData()));
+                if (onlyCaptures)
+                {
+                    QueenAttacks.SetData(QueenAttacks.GetData() & (board.ColourToMove == 1 ? board.WhitePieces.GetData() : board.BlackPieces.GetData())); //only counts the intersection with enemy pieces
+                } else {
+                    QueenAttacks.SetData(QueenAttacks.GetData() & ~(board.ColourToMove == 0? board.WhitePieces.GetData() : board.BlackPieces.GetData()));
+                }
                 QueenLocations.ClearBit(startSquare);
                 while (QueenAttacks.GetData() > 0) //for each target square
                 {

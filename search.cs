@@ -19,9 +19,9 @@ namespace ChessEngine
                 Evaluation.InitializeKillerMoves(); //clear killer moves
                 PrincipleVariation = PV;
             }
-            for (int i = 0; i < PrincipleVariation.Count();i++)
+            for (int i = PrincipleVariation.Count() - 1; i >= 0;i--)
             {
-                PrincipleVariation[i].PrintMove();
+                //PrincipleVariation[i].PrintMove();
             }
             return (BestMove, Eval, PrincipleVariation);
         }
@@ -74,7 +74,7 @@ namespace ChessEngine
 
             if (Moves[0].GetData() == 0) //no legal moves
             {
-                if (!MoveGenerator.CheckLegal(board, NullMove)) return (NullMove, -1000000 * Depth, EmptyVariation); //checkmate
+                if (MoveGenerator.InCheck(board, board.ColourToMove)) return (NullMove, -1000000 * Depth, EmptyVariation); //checkmate
                 else return (NullMove, 0, EmptyVariation); //stalemate
             }
             float maxEval = -100000000;
@@ -84,13 +84,13 @@ namespace ChessEngine
             for (int i = 0; i < 218; i++)
             {
                 if (Moves[i].GetData() == 0) break; //done all moves
-                if (!MoveGenerator.CheckLegal(board, Moves[i])) continue; //illegal move so ignore
+                //if (!MoveGenerator.CheckLegal(board, Moves[i])) continue; //illegal move so ignore
 
                 board.MakeMove(Moves[i]);
                 Move TopMove;
                 float Score;
                 Move[] PV;
-                if (i > LMRThreshold && Depth > 1 && Depth < 6) // idea of this is to reduce search of bad variations
+                if (i > LMRThreshold && Depth > 1) // idea of this is to reduce search of bad variations
                 {
                     (TopMove, Score, PV) = AlphaBeta(board, Depth - 2, TTable, -Beta, -Alpha);
                 } else { // if it looks like a move worth searching
