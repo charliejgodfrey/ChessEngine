@@ -14,7 +14,7 @@ namespace ChessEngine
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             Test.LoadTestPositions();
-            board = new Board("r1bqkb1r/pppppppp/2n2n2/3P4/4P3/8/PPP2PPP/RNBQKBNR");
+            board = new Board();
             board.PrintBoard();
             board.Eval = Evaluation.WeightedMaterial(board);
 
