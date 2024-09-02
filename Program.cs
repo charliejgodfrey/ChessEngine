@@ -22,29 +22,33 @@ namespace ChessEngine
 
             while (1==1)
             {
-
+                //PrintMoves(board);
                 // Move move = GetUserMove(board);
                 // board.MakeMove(move);
                 // board.PrintBoard();
 
-                //break;
-                //Evaluation.HistoryTable = new int[64, 64, 16];
-
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 9, TTable);
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 11, TTable);
                 board.MakeMove(BestMove);
-                board.PrintBoard();
-                BestMove.PrintMove();
-                Console.WriteLine("Computer Evaluation Assessment: " + (Eval/100));
-                break;
-              //  break;
-                // Console.WriteLine("eval percentage from positional: " + (Evaluation.avgPositional / (Evaluation.avgPositional + Evaluation.avgMaterial)));
-                // Console.WriteLine("avergae difference: " + (Evaluation.avgDiffer/Evaluation.count / 100));
-                // Evaluation.avgPositional = 0;
-                // Evaluation.avgMaterial = 0;
-                // //break;
-                // Evaluation.HistoryTable = new int[64, 64, 16];
-                //board.RefreshBitboardConfiguration();
+                //board.PrintBoard();
+                //BestMove.PrintMove();
+                Console.WriteLine(FormatMove(BestMove));
+                //Console.WriteLine("Eval: " + (Eval/100));
+                board.RefreshBitboardConfiguration();
             }
+        }
+
+        public static string FormatMove(Move move)
+        {
+            string[] Pieces = new string[12] {"", "kn", "b", "r", "q", "k", "", "Kn", "B", "R", "Q", "K"};
+            string[] Files = new String[8] {"a", "b", "c", "d", "e", "f", "g", "h"};
+            int start = move.GetStart();
+            int target = move.GetTarget();
+            bool capture = (move.GetCapture() != 7);
+            int piece = move.GetPiece();
+            string Formated = Pieces[piece] + (capture && piece == 0 ? Files[start % 8] : "");
+            string File = Files[target % 8];
+            int Rank = target / 8 + 1;
+            return (Formated + (capture ? "x" : "") + File + Rank.ToString());
         }
 
         public static void PrintMoves(Board board)

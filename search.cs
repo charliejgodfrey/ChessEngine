@@ -5,6 +5,7 @@ namespace ChessEngine
         public static Move NullMove = new Move(0,0,0,0,0,1);
         public static Move[] EmptyVariation = new Move[100];
         public static int LMRThreshold = 6;
+        public static int NodesEvaluated = 0;
 
         public static (Move, float, Move[]) IterativeDeepeningSearch(Board board, int maxDepth, TranspositionTable TTable)
         {
@@ -13,10 +14,13 @@ namespace ChessEngine
             Move[] PrincipleVariation = new Move[maxDepth];
             for (int depth = 1; depth <= maxDepth; depth++)
             {
-                Console.WriteLine("currently searching to depth: " + depth + "/" + maxDepth);
-                LMRThreshold = 6;// 18 - depth*2;
+                if (depth > 7) Console.WriteLine("currently searching to depth: " + depth + "/" + maxDepth);
+                LMRThreshold = 4;//(maxDepth * 2 + 4) - depth*2;
+                NodesEvaluated = 0;
                 (BestMove, Eval, Move[] PV) = AlphaBeta(board, depth, TTable);
-                Evaluation.InitializeKillerMoves(); //clear killer moves
+                if (depth > 7) Console.WriteLine("nodes evaluated: " + NodesEvaluated);
+                Evaluation.ShiftKillerMoves();
+                //Evaluation.InitializeKillerMoves(); //clear killer moves
                 PrincipleVariation = PV;
             }
             for (int i = PrincipleVariation.Count() - 1; i >= 0;i--)
@@ -28,7 +32,7 @@ namespace ChessEngine
 
         public static (Move, float, Move[]) AlphaBeta(Board board, int Depth, TranspositionTable TTable, float Alpha = -10000000, float Beta = 10000000)
         {
-            // Console.WriteLine("zobrist: " + board.Zobrist);
+            //Console.WriteLine("zobrist: " + board.Zobrist);
             TranspositionEntry entry = TTable.Retrieve(board.Zobrist);
             Move HashMove = NullMove;
 
@@ -68,7 +72,7 @@ namespace ChessEngine
             // }
 
             Move[] Moves = MoveGenerator.GenerateMoves(board);
-            if (Depth >= 2) Evaluation.OrderMoves(board, Moves, HashMove, Depth); // the two is a bit arbitrary but seems to be what works the best
+            Evaluation.OrderMoves(board, Moves, HashMove, Depth); //this increases pruning a insanely huge amount
             
             Move BestMove = NullMove;
 
@@ -90,13 +94,35 @@ namespace ChessEngine
                 Move TopMove;
                 float Score;
                 Move[] PV;
+
+                //if (Depth > 6) {
+
+                // if (i==0 || Depth == 1) //the first move
+                // {
+                //     (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, -Beta, -Alpha);
+                //     // if (Depth == 9) {
+                //     //     Console.WriteLine("initial search complete: " + Score);
+                //     //     Moves[i].PrintMove();
+                //     // }
+                // } else {
+                //     int Reduction = (i > LMRThreshold && Depth > 1 ? 1 : 0);
+                //     (TopMove, Score, PV) = AlphaBeta(board, Depth - 1 - Reduction, TTable, -Alpha - 1, -Alpha); //null window search with potentially reduced depth
+                //     if (-Score > Alpha && -Score < Beta) //research required
+                //     {
+                //         (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, -Beta, -Alpha); //research with wide window and without reduced depth to increase accuracy
+                //         //if (Depth == 9) Console.WriteLine("researched!" + Score);
+                //     } //else if (Depth == 9) Console.WriteLine("no research needed");
+                // }
+
+                // } else {
+
                 if (i > LMRThreshold && Depth > 1) // idea of this is to reduce search of bad variations
                 {
                     (TopMove, Score, PV) = AlphaBeta(board, Depth - 2, TTable, -Beta, -Alpha);
                 } else { // if it looks like a move worth searching
                     (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, -Beta, -Alpha);
                 }
-
+                // }
                 board.UnmakeMove(Moves[i]);
                 float Eval = -Score; // good move for opponent is bad for us
                 if (Eval > maxEval)
@@ -129,6 +155,7 @@ namespace ChessEngine
         public static float QuiescienceSearch(Board board, float Alpha = -1000000, float Beta = 1000000)
         {
             float Eval = Evaluation.Evaluate(board);
+            NodesEvaluated++;
             if (Eval >= Beta) 
             {
                 return Beta;

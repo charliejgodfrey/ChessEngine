@@ -83,6 +83,14 @@ namespace ChessEngine
 
         public void MakeMove(Move move) 
         {
+            if (move.GetCapture() == 5)
+            {
+                move.PrintMove();
+                PrintBoard();
+                OccupiedSquares.PrintData();
+                BlackPawns.PrintData();
+            }
+
             if (move.GetNullMove() == 1)
             {
                 ColourToMove = (ColourToMove == 0 ? 1 : 0);
@@ -137,8 +145,16 @@ namespace ChessEngine
             else EnPassantSquare = -1;
             if (flag == 0b0101) //en passant capture
             {
-                if (ColourToMove == 0) BlackPawns.ClearBit(target - 8);
-                else WhitePawns.ClearBit(target + 8);
+                if (ColourToMove == 0) {
+                    BlackPawns.ClearBit(target - 8);
+                    BlackPieces.ClearBit(target - 8);
+                    OccupiedSquares.ClearBit(target + 8);
+                }
+                else {
+                    WhitePawns.ClearBit(target + 8);
+                    WhitePieces.ClearBit(target + 8);
+                    OccupiedSquares.ClearBit(target + 8);
+                }
                 EnPassantSquare = -1;
             }
             if (flag >= 0b1000) //promotion
@@ -188,6 +204,8 @@ namespace ChessEngine
                 }
                 if (flag == 0b0101) { //en passant
                     BlackPawns.SetBit(target - 8);
+                    BlackPieces.SetBit(target - 8);
+                    OccupiedSquares.SetBit(target - 8);
                     EnPassantSquare = target - 8;
                 }
             } else {
@@ -211,6 +229,8 @@ namespace ChessEngine
                 }
                 if (flag == 0b0101) { //en passant
                     WhitePawns.SetBit(target + 8);
+                    WhitePieces.SetBit(target + 8);
+                    OccupiedSquares.SetBit(target + 8);
                     EnPassantSquare = (target + 8);
                 }
             }

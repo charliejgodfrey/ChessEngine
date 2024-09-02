@@ -322,6 +322,14 @@ namespace ChessEngine
             HistoryTable[move.GetStart(), move.GetTarget(), move.GetFlag()] += Depth*Depth;
         }
 
+        public static void ShiftKillerMoves()
+        {
+            for (int i = 2; i < 128; i++) 
+            {
+                KillerMoves[i] = new Move[2] {KillerMoves[i-2][0], KillerMoves[i-2][1]};
+            }
+        }
+
         public static void InitializeKillerMoves()
         {
             for (int i = 0; i < 128; i++)
