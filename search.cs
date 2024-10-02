@@ -14,7 +14,7 @@ namespace ChessEngine
             Move[] PrincipleVariation = new Move[maxDepth];
             for (int depth = 1; depth <= maxDepth; depth++)
             {
-                if (depth > 7) Console.WriteLine("currently searching to depth: " + depth + "/" + maxDepth);
+                //if (depth > 7) Console.WriteLine("currently searching to depth: " + depth + "/" + maxDepth);
                 LMRThreshold = 4;//(maxDepth * 2 + 4) - depth*2;
                 NodesEvaluated = 0;
                 (BestMove, Eval, Move[] PV) = AlphaBeta(board, depth, TTable);
@@ -97,7 +97,7 @@ namespace ChessEngine
 
                 //if (Depth > 6) {
 
-                // if (i==0 || Depth == 1) //the first move
+                // if (i < LMRThreshold || Depth == 1) //the first move
                 // {
                 //     (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, -Beta, -Alpha);
                 //     // if (Depth == 9) {
@@ -106,7 +106,7 @@ namespace ChessEngine
                 //     // }
                 // } else {
                 //     int Reduction = (i > LMRThreshold && Depth > 1 ? 1 : 0);
-                //     (TopMove, Score, PV) = AlphaBeta(board, Depth - 1 - Reduction, TTable, -Alpha - 1, -Alpha); //null window search with potentially reduced depth
+                //     (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, -Alpha - 1, -Alpha); //null window search with potentially reduced depth
                 //     if (-Score > Alpha && -Score < Beta) //research required
                 //     {
                 //         (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, -Beta, -Alpha); //research with wide window and without reduced depth to increase accuracy

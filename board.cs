@@ -52,6 +52,7 @@ namespace ChessEngine
             OccupiedSquares = new Bitboard(BlackPieces.GetData() | WhitePieces.GetData());
             Pieces = [WhitePawns, WhiteKnights, WhiteBishops, WhiteRooks, WhiteQueens, WhiteKing, BlackPawns, BlackKnights, BlackBishops, BlackRooks, BlackQueens, BlackKing];
             Zobrist = Hasher.Hash(this);
+            Eval = Evaluation.WeightedMaterial(this);
             }
         }
 

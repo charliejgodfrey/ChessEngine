@@ -18,7 +18,7 @@ namespace ChessEngine
 
         public static float Evaluate(Board board)
         {
-            //return WeightedMaterial(board);
+            //WeightedMaterial(board);
             //return board.Eval;
             float WhitePawns = PawnEvaluationTable.Retrieve(board.WhitePawns.GetData());
             float BlackPawns = PawnEvaluationTable.Retrieve(board.BlackPawns.GetData());
@@ -37,16 +37,18 @@ namespace ChessEngine
             float PieceDefense = (DefendedMinorPieces(board, 0) - DefendedMinorPieces(board, 1)) * 4;
             (float WhiteMobility, ulong WhiteAttacks) = EvaluateMobility(board, 0);
             (float BlackMobility, ulong BlackAttacks) = EvaluateMobility(board, 1);
-            float Mobility = ((WhiteMobility+1)/(BlackMobility+1) - 1) * 100;
+            //Console.WriteLine("white: " + WhiteMobility + " black: " + BlackMobility);
+            float Mobility = (2*(WhiteMobility)/(BlackMobility+WhiteMobility) - 1) * 100;
             float PieceCoordination = EvaluateAttackBitboard(board, WhiteAttacks, BlackAttacks) * 10;
             float Pins = (BitOperations.PopCount(DetectPinnedPieces(board, BlackAttacks, 0)) - BitOperations.PopCount(DetectPinnedPieces(board, WhiteAttacks, 1))) * 20;
-            float Material = WeightedMaterial(board);
+            float Material = board.Eval;//WeightedMaterial(board);
             // avgMaterial += Math.Abs(Material);
             // avgPositional += Math.Abs(WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination);
             // avgDiffer += Math.Abs((WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination));
             // count++;
-            //Console.WriteLine("Mobility Score: " + Mobility + " Piece Coordination: " + PieceCoordination + " Piece Defense: " + PieceDefense + " wpawn: " + WhitePawns + " bpawn: " + BlackPawns);
-            //Console.WriteLine("sum of non material: " + (WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination));
+            // Console.WriteLine("Mobility Score: " + Mobility + " Piece Coordination: " + PieceCoordination + " Piece Defense: " + PieceDefense + " wpawn: " + WhitePawns + " bpawn: " + BlackPawns);
+            // Console.WriteLine("sum of non material: " + (WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination));
+            // Console.WriteLine("weighted material: " + board.Eval);
             return Material + WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination;
         }
 
@@ -73,6 +75,8 @@ namespace ChessEngine
             //king safety bonuses
             int WhiteKingSafety = BitOperations.PopCount(BlackAttacks & PreComputeData.KingAdjacents[board.WhiteKing.LSB()]);
             int BlackKingSafety = BitOperations.PopCount(WhiteAttacks & PreComputeData.KingAdjacents[board.BlackKing.LSB()]);
+            WhiteDefendedPieces &= ~board.WhitePawns.GetData(); //defended pawns don't rlly matter
+            BlackDefendedPieces &= ~board.BlackPawns.GetData();
             double WhiteBonus = 1.5 * BitOperations.PopCount(WhiteDefendedPieces) + 2 * BitOperations.PopCount(WhiteThreats) + 0.25 * WhiteSpaceAdvantage - 1.25 * BitOperations.PopCount(WhiteUndefendedPieces) - 2.5 * WhiteKingSafety;
             double BlackBonus = 1.5 * BitOperations.PopCount(BlackDefendedPieces) + 2 * BitOperations.PopCount(BlackThreats) + 0.25 * BlackSpaceAdvantage - 1.25 * BitOperations.PopCount(BlackUndefendedPieces) - 2.5 * BlackKingSafety;
             return (float)(WhiteBonus - BlackBonus);
@@ -130,7 +134,13 @@ namespace ChessEngine
                 QueenMoves += BitOperations.PopCount(Attacks);
                 Queens.ClearBit(square);
             }
-            return (KnightMoves + BishopMoves + RookMoves + QueenMoves/4, AttackedSquares); //to discourage getting the queen out in the opening
+
+            ulong EastCapture = ((board.Pieces[ColourAdd].GetData() << 9) & 0x7F7F7F7F7F7F7F7F); //this essentially checks there is a piece that can be captured and accounts for overflow stuff
+            ulong WestCapture = ((board.Pieces[ColourAdd].GetData() << 7) & 0xFEFEFEFEFEFEFEF); //does the same thing for the other direction
+            ulong ForwardMoves = ((board.Pieces[ColourAdd].GetData() << 8) & ~(Player == 0 ? board.BlackPieces.GetData() : board.WhitePieces.GetData()));
+            int PawnMoves = BitOperations.PopCount(ForwardMoves);
+            AttackedSquares |= (WestCapture | EastCapture);
+            return (KnightMoves + BishopMoves + RookMoves + QueenMoves/4 + PawnMoves, AttackedSquares); //to discourage getting the queen out in the opening
         }
 
         public static int DefendedMinorPieces(Board board, int Player)
@@ -171,7 +181,7 @@ namespace ChessEngine
             float score = 0;
             score -= PawnDoubles(Pawns, Player) * 15;
             score -= PawnIsolated(Pawns, Player) * 15;
-            score += PawnChains(Pawns) * 3;
+            //score += PawnChains(Pawns) * 3;
             score += OutpostEvaluation(Pawns, Player) * 10;
             //score -= WhiteBackwardsPawns
             return score;
