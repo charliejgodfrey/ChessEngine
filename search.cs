@@ -18,7 +18,7 @@ namespace ChessEngine
                 LMRThreshold = 4;//(maxDepth * 2 + 4) - depth*2;
                 NodesEvaluated = 0;
                 (BestMove, Eval, Move[] PV) = AlphaBeta(board, depth, TTable);
-                if (depth > 7) Console.WriteLine("nodes evaluated: " + NodesEvaluated);
+                if (depth > 0) Console.WriteLine("nodes evaluated for depth " + depth + ": " + NodesEvaluated + " current best move: " + Program.FormatMove(BestMove));
                 Evaluation.ShiftKillerMoves();
                 //Evaluation.InitializeKillerMoves(); //clear killer moves
                 PrincipleVariation = PV;
@@ -49,7 +49,7 @@ namespace ChessEngine
                     HashMove = entry.BestMove;
                     //HashMove.PrintMove();
                 }
-                else if (entry.NodeType == 2)
+                else if (entry.NodeType == 2) // upper bound
                 {
                     if (entry.Depth >= Depth) Beta = ((Beta < entry.Evaluation) ? Beta : entry.Evaluation);
                     HashMove = entry.BestMove;
@@ -81,6 +81,21 @@ namespace ChessEngine
                 if (MoveGenerator.InCheck(board, board.ColourToMove)) return (NullMove, -1000000 * Depth, EmptyVariation); //checkmate
                 else return (NullMove, 0, EmptyVariation); //stalemate
             }
+
+            if (Depth > 2 && !MoveGenerator.InCheck(board, board.ColourToMove)) //appropriate for Null Move pruning, add a not in endgame check
+            {
+                int reduction = (Depth == 3 ? 3 : 4); //this speeds things up a tonne
+                board.ColourToMove = (board.ColourToMove == 0) ? 1 : 0; //empty move
+                (Move TopMove,float Score,Move[] PV) = AlphaBeta(board, Depth - reduction, TTable, -Beta, -Beta + 1); //perform significantly reduced depth search with narrow window
+                board.ColourToMove = (board.ColourToMove == 0) ? 1 : 0; //undo empty move
+                if (-Score >= Beta) 
+                {
+                    TTable.Store(board.Zobrist, Beta, Depth, NullMove, Moves, 1);
+                    //storing these as type 2 nodes is super important, not sure why
+                    return (NullMove, Beta, PV);
+                }
+            }
+                
             float maxEval = -100000000;
             Move ReturnMove = Moves[0];
             Move[] PrincipleVariation = new Move[100];
@@ -94,27 +109,6 @@ namespace ChessEngine
                 Move TopMove;
                 float Score;
                 Move[] PV;
-
-                //if (Depth > 6) {
-
-                // if (i < LMRThreshold || Depth == 1) //the first move
-                // {
-                //     (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, -Beta, -Alpha);
-                //     // if (Depth == 9) {
-                //     //     Console.WriteLine("initial search complete: " + Score);
-                //     //     Moves[i].PrintMove();
-                //     // }
-                // } else {
-                //     int Reduction = (i > LMRThreshold && Depth > 1 ? 1 : 0);
-                //     (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, -Alpha - 1, -Alpha); //null window search with potentially reduced depth
-                //     if (-Score > Alpha && -Score < Beta) //research required
-                //     {
-                //         (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, -Beta, -Alpha); //research with wide window and without reduced depth to increase accuracy
-                //         //if (Depth == 9) Console.WriteLine("researched!" + Score);
-                //     } //else if (Depth == 9) Console.WriteLine("no research needed");
-                // }
-
-                // } else {
 
                 if (i > LMRThreshold && Depth > 1) // idea of this is to reduce search of bad variations
                 {

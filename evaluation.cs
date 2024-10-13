@@ -140,7 +140,8 @@ namespace ChessEngine
             ulong ForwardMoves = ((board.Pieces[ColourAdd].GetData() << 8) & ~(Player == 0 ? board.BlackPieces.GetData() : board.WhitePieces.GetData()));
             int PawnMoves = BitOperations.PopCount(ForwardMoves);
             AttackedSquares |= (WestCapture | EastCapture);
-            return (KnightMoves + BishopMoves + RookMoves + QueenMoves/4 + PawnMoves, AttackedSquares); //to discourage getting the queen out in the opening
+            int CentreControl = BitOperations.PopCount(AttackedSquares & 0x0000003C3C000000);
+            return (KnightMoves + BishopMoves + RookMoves + QueenMoves/4 + PawnMoves + CentreControl * 3, AttackedSquares); //to discourage getting the queen out in the opening
         }
 
         public static int DefendedMinorPieces(Board board, int Player)

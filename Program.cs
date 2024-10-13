@@ -14,7 +14,7 @@ namespace ChessEngine
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             Test.LoadTestPositions();
-            board = new Board();
+            board = new Board("");
             board.PrintBoard();
             board.Eval = Evaluation.WeightedMaterial(board);
             //Test.ShowEvaluationScores();
@@ -23,25 +23,25 @@ namespace ChessEngine
 
             while (1==1)
             {
-                //PrintMoves(board);
-                // Move move = GetUserMove(board);
-                // board.MakeMove(move);
-                // board.PrintBoard();
+                Move move = GetUserMove(board);
+                board.MakeMove(move);
+                board.PrintBoard();
                 
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 8, TTable);
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 10, TTable);
                 board.MakeMove(BestMove);
-                //board.PrintBoard();
+                board.PrintBoard();
                 //BestMove.PrintMove();
                 Console.WriteLine(FormatMove(BestMove));
 
-                (BestMove, Eval, PV) = Search.IterativeDeepeningSearch(board, 8, TTable);
-                board.MakeMove(BestMove);
-                //board.PrintBoard();
-                //BestMove.PrintMove();
-                Console.WriteLine(FormatMove(BestMove));
-                // Console.WriteLine("Eval: " + (board.Eval/100));
-                // Console.WriteLine("Eval: " + (Evaluation.WeightedMaterial(board)/100));
-                board.RefreshBitboardConfiguration();
+                // (BestMove, Eval, PV) = Search.IterativeDeepeningSearch(board, 10, TTable);
+                // board.MakeMove(BestMove);
+                // //board.PrintBoard();
+                // //BestMove.PrintMove();
+                // Console.WriteLine(FormatMove(BestMove));
+                // // Console.WriteLine("Eval: " + (board.Eval/100));
+                // // Console.WriteLine("Eval: " + (Evaluation.WeightedMaterial(board)/100));
+                // board.RefreshBitboardConfiguration();
+                //break;
             }
         }
 
