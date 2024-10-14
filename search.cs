@@ -27,6 +27,10 @@ namespace ChessEngine
             {
                 //PrincipleVariation[i].PrintMove();
             }
+            if (BestMove.GetData() == NullMove.GetData()) {
+                Move[] Moves = MoveGenerator.GenerateMoves(board);
+                return (Moves[0], Eval, PrincipleVariation);
+            }
             return (BestMove, Eval, PrincipleVariation);
         }
 
@@ -41,7 +45,7 @@ namespace ChessEngine
                 //Console.WriteLine("transposition");
                 if (entry.NodeType == 0 && entry.Depth >= Depth) // exact value
                 {
-                    return (NullMove, entry.Evaluation, EmptyVariation);
+                    return (entry.BestMove, entry.Evaluation, EmptyVariation);
                 }
                 else if (entry.NodeType == 1) // lower bound
                 {
@@ -56,7 +60,7 @@ namespace ChessEngine
                 }
                 if (Alpha >= Beta)
                 {
-                    return (NullMove, entry.Evaluation, EmptyVariation);
+                    return (entry.BestMove, entry.Evaluation, EmptyVariation);
                 }
             }
 
@@ -78,11 +82,11 @@ namespace ChessEngine
 
             if (Moves[0].GetData() == 0) //no legal moves
             {
-                if (MoveGenerator.InCheck(board, board.ColourToMove)) return (NullMove, -1000000 * Depth, EmptyVariation); //checkmate
+                if (MoveGenerator.InCheck(board, board.ColourToMove)) return (NullMove, -100000 * Depth, EmptyVariation); //checkmate
                 else return (NullMove, 0, EmptyVariation); //stalemate
             }
 
-            if (Depth > 2 && !MoveGenerator.InCheck(board, board.ColourToMove)) //appropriate for Null Move pruning, add a not in endgame check
+            if (Depth > 2 && !MoveGenerator.InCheck(board, board.ColourToMove) &&  !MoveGenerator.InCheck(board, Math.Abs(board.ColourToMove-1)) && board.GamePhase > 20) //appropriate for Null Move pruning, add a not in endgame check
             {
                 int reduction = (Depth == 3 ? 3 : 4); //this speeds things up a tonne
                 board.ColourToMove = (board.ColourToMove == 0) ? 1 : 0; //empty move

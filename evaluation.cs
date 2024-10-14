@@ -38,7 +38,7 @@ namespace ChessEngine
             (float WhiteMobility, ulong WhiteAttacks) = EvaluateMobility(board, 0);
             (float BlackMobility, ulong BlackAttacks) = EvaluateMobility(board, 1);
             //Console.WriteLine("white: " + WhiteMobility + " black: " + BlackMobility);
-            float Mobility = (2*(WhiteMobility)/(BlackMobility+WhiteMobility) - 1) * 100;
+            float Mobility = 10*(WhiteMobility - BlackMobility);
             float PieceCoordination = EvaluateAttackBitboard(board, WhiteAttacks, BlackAttacks) * 10;
             float Pins = (BitOperations.PopCount(DetectPinnedPieces(board, BlackAttacks, 0)) - BitOperations.PopCount(DetectPinnedPieces(board, WhiteAttacks, 1))) * 20;
             float Material = board.Eval;//WeightedMaterial(board);
@@ -261,6 +261,7 @@ namespace ChessEngine
         public static float WeightedMaterial(Board board)
         {
             float score = 0;
+            float NewGamePhase = 0;
             for (int p = 0; p < 12; p++)
             {
                 for (int i = 0; i < 64; i++)
@@ -268,15 +269,17 @@ namespace ChessEngine
                     if (board.Pieces[p].IsBitSet(i)) 
                     {
                         score += MaterialValues[p];
+                        NewGamePhase += Math.Abs(MaterialValues[p]);
                         if (p < 6) //white piece
                         {
-                            score += PieceSquareTable[p][((7  - (i / 8)) * 8 + i % 8)];
+                            score += PieceSquareTable[p][Evaluation.Flip[i]];
                         } else{ //black piece
                             score -= PieceSquareTable[p-6][i];
                         }
                     }
                 }
             }
+            board.GamePhase = NewGamePhase;
             return score;
         }
 
@@ -330,6 +333,7 @@ namespace ChessEngine
 
         public static void UpdateHistoryTable(Move move, int Depth)
         {
+            if (move.IsCapture()) return;
             HistoryTable[move.GetStart(), move.GetTarget(), move.GetFlag()] += Depth*Depth;
         }
 
@@ -410,6 +414,16 @@ namespace ChessEngine
             -10,-20,-20,-20,-20,-20,-20,-10,
             20, 20,  0,  0,  0,  0, 20, 20,
             20, 30, 10,  0,  0, 10, 30, 20};
+        
+        public static int[] Flip = {
+            56,  57,  58,  59,  60,  61,  62,  63,
+            48,  49,  50,  51,  52,  53,  54,  55,
+            40,  41,  42,  43,  44,  45,  46,  47,
+            32,  33,  34,  35,  36,  37,  38,  39,
+            24,  25,  26,  27,  28,  29,  30,  31,
+            16,  17,  18,  19,  20,  21,  22,  23,
+            8,   9,  10,  11,  12,  13,  14,  15,
+            0,   1,   2,   3,   4,   5,   6,   7};
 
         public static int[][] PieceSquareTable = {PawnTable, KnightTable, BishopTable, RookTable, QueenTable, KingTable};
     }

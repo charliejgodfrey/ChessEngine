@@ -21,6 +21,7 @@ namespace ChessEngine
         public float Eval = 0;
         public ZobristHasher Hasher = new ZobristHasher();
         public ulong Zobrist;
+        public float GamePhase = 0;
 
         //bitboards
         public Bitboard WhitePawns = new Bitboard();
@@ -259,10 +260,11 @@ namespace ChessEngine
             int target = move.GetTarget();
             int start = move.GetStart();
             int capture = move.GetCapture();
+            GamePhase -= Evaluation.MaterialValues[capture];
             if (ColourToMove == 0)
             {
-                Eval += Evaluation.PieceSquareTable[piece][((7  - (target / 8)) * 8 + target % 8)];
-                Eval -= Evaluation.PieceSquareTable[piece][((7  - (start / 8)) * 8 + start % 8)];
+                Eval += Evaluation.PieceSquareTable[piece][Evaluation.Flip[target]];
+                Eval -= Evaluation.PieceSquareTable[piece][Evaluation.Flip[start]];
                 if (capture != 0b111) //it is a capture
                 {
                     Eval += Evaluation.MaterialValues[capture];
@@ -276,7 +278,7 @@ namespace ChessEngine
                 if (capture != 0b111)
                 {
                     Eval -= Evaluation.MaterialValues[capture];
-                    Eval -= Evaluation.PieceSquareTable[capture][((7  - (target / 8)) * 8 + target % 8)];
+                    Eval -= Evaluation.PieceSquareTable[capture][Evaluation.Flip[target]];
                 }
             }
         }
@@ -292,11 +294,13 @@ namespace ChessEngine
             int target = move.GetTarget();
             int start = move.GetStart();
             int capture = move.GetCapture();
+            GamePhase -= Evaluation.MaterialValues[capture];
+
 
             if (ColourToMove == 1) //white is unmaking the move
             {
-                Eval -= Evaluation.PieceSquareTable[piece][((7  - (target / 8)) * 8 + target % 8)];
-                Eval += Evaluation.PieceSquareTable[piece][((7  - (start / 8)) * 8 + start % 8)];
+                Eval -= Evaluation.PieceSquareTable[piece][Evaluation.Flip[target]];
+                Eval += Evaluation.PieceSquareTable[piece][Evaluation.Flip[start]];
                 if (capture != 0b111) //is an uncapturing unmove
                 {
                     Eval -= Evaluation.MaterialValues[capture];
@@ -308,7 +312,7 @@ namespace ChessEngine
                 if (capture != 0b111) //is an uncapturing unmove
                 {
                     Eval += Evaluation.MaterialValues[capture];
-                    Eval += Evaluation.PieceSquareTable[capture][((7  - (target / 8)) * 8 + target % 8)];
+                    Eval += Evaluation.PieceSquareTable[capture][Evaluation.Flip[target]];
                 }
             }
         }
