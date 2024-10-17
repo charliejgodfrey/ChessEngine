@@ -17,10 +17,10 @@ namespace ChessEngine
                 //if (depth > 7) Console.WriteLine("currently searching to depth: " + depth + "/" + maxDepth);
                 LMRThreshold = 4;//(maxDepth * 2 + 4) - depth*2;
                 NodesEvaluated = 0;
-                (BestMove, Eval, Move[] PV) = AlphaBeta(board, depth, TTable);
+                (BestMove, Eval, Move[] PV) = AlphaBeta(board, depth, TTable, NullMove);
                 if (depth > 0) Console.WriteLine("nodes evaluated for depth " + depth + ": " + NodesEvaluated + " current best move: " + Program.FormatMove(BestMove));
                 Evaluation.ShiftKillerMoves();
-                //Evaluation.InitializeKillerMoves(); //clear killer moves
+                Evaluation.InitializeKillerMoves(); //clear killer moves
                 PrincipleVariation = PV;
             }
             for (int i = PrincipleVariation.Count() - 1; i >= 0;i--)
@@ -34,7 +34,7 @@ namespace ChessEngine
             return (BestMove, Eval, PrincipleVariation);
         }
 
-        public static (Move, float, Move[]) AlphaBeta(Board board, int Depth, TranspositionTable TTable, float Alpha = -10000000, float Beta = 10000000)
+        public static (Move, float, Move[]) AlphaBeta(Board board, int Depth, TranspositionTable TTable, Move PreviousMove, float Alpha = -10000000, float Beta = 10000000)
         {
             //Console.WriteLine("zobrist: " + board.Zobrist);
             TranspositionEntry entry = TTable.Retrieve(board.Zobrist);
@@ -43,24 +43,29 @@ namespace ChessEngine
             if (entry != null) //transposition table stuff
             {
                 //Console.WriteLine("transposition");
-                if (entry.NodeType == 0 && entry.Depth >= Depth) // exact value
+                if (entry.NodeType == 0) // exact value
                 {
-                    return (entry.BestMove, entry.Evaluation, EmptyVariation);
+                    HashMove = entry.BestMove;
+                    if (entry.Depth >= Depth) return (entry.BestMove, entry.Evaluation, EmptyVariation);
                 }
                 else if (entry.NodeType == 1) // lower bound
                 {
                     if (entry.Depth >= Depth) Alpha = ((Alpha > entry.Evaluation) ? Alpha : entry.Evaluation);
                     HashMove = entry.BestMove;
+                    if (Alpha >= Beta)
+                    {
+                        return (entry.BestMove, entry.Evaluation, EmptyVariation);
+                    }
                     //HashMove.PrintMove();
                 }
                 else if (entry.NodeType == 2) // upper bound
                 {
                     if (entry.Depth >= Depth) Beta = ((Beta < entry.Evaluation) ? Beta : entry.Evaluation);
                     HashMove = entry.BestMove;
-                }
-                if (Alpha >= Beta)
-                {
-                    return (entry.BestMove, entry.Evaluation, EmptyVariation);
+                    if (entry.Evaluation <= Alpha)
+                    {
+                        return (entry.BestMove, entry.Evaluation, EmptyVariation);
+                    }
                 }
             }
 
@@ -70,13 +75,9 @@ namespace ChessEngine
                 //return (new Move(), Evaluation.Evaluate(board), new Move[100]);
             }
 
-            // if (Depth == 1 && board.Eval + 100 <= Alpha)
-            // {
-            //     return (new Move(), Evaluation.Evaluate(board) * (board.ColourToMove == 0 ? 1 : -1), new Move[100]);
-            // }
 
             Move[] Moves = MoveGenerator.GenerateMoves(board);
-            Evaluation.OrderMoves(board, Moves, HashMove, Depth); //this increases pruning a insanely huge amount
+            Evaluation.OrderMoves(board, Moves, HashMove, Depth, PreviousMove); //this increases pruning a insanely huge amount
             
             Move BestMove = NullMove;
 
@@ -90,11 +91,11 @@ namespace ChessEngine
             {
                 int reduction = (Depth == 3 ? 3 : 4); //this speeds things up a tonne
                 board.ColourToMove = (board.ColourToMove == 0) ? 1 : 0; //empty move
-                (Move TopMove,float Score,Move[] PV) = AlphaBeta(board, Depth - reduction, TTable, -Beta, -Beta + 1); //perform significantly reduced depth search with narrow window
+                (Move TopMove,float Score,Move[] PV) = AlphaBeta(board, Depth - reduction, TTable, NullMove, -Beta, -Beta + 1); //perform significantly reduced depth search with narrow window
                 board.ColourToMove = (board.ColourToMove == 0) ? 1 : 0; //undo empty move
                 if (-Score >= Beta) 
                 {
-                    TTable.Store(board.Zobrist, Beta, Depth, NullMove, Moves, 1);
+                    TTable.Store(board.Zobrist, Beta, Depth, NullMove, 1);
                     //storing these as type 2 nodes is super important, not sure why
                     return (NullMove, Beta, PV);
                 }
@@ -103,7 +104,9 @@ namespace ChessEngine
             float maxEval = -100000000;
             Move ReturnMove = Moves[0];
             Move[] PrincipleVariation = new Move[100];
-            int nodetype = 0;
+            int nodetype = 2;
+
+            float previousEval = Alpha;
             for (int i = 0; i < 218; i++)
             {
                 if (Moves[i].GetData() == 0) break; //done all moves
@@ -116,9 +119,9 @@ namespace ChessEngine
 
                 if (i > LMRThreshold && Depth > 1) // idea of this is to reduce search of bad variations
                 {
-                    (TopMove, Score, PV) = AlphaBeta(board, Depth - 2, TTable, -Beta, -Alpha);
+                    (TopMove, Score, PV) = AlphaBeta(board, Depth - 2, TTable, Moves[i], -Beta, -Alpha);
                 } else { // if it looks like a move worth searching
-                    (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, -Beta, -Alpha);
+                    (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, Moves[i], -Beta, -Alpha);
                 }
                 // }
                 board.UnmakeMove(Moves[i]);
@@ -132,7 +135,7 @@ namespace ChessEngine
                 if (Eval > Alpha)
                 {
                     Alpha = Eval;
-                    nodetype = 2;
+                    nodetype = 0;
                 }
                 if (Eval >= Beta) 
                 {
@@ -145,7 +148,11 @@ namespace ChessEngine
                     break;
                 }
             }
-            TTable.Store(board.Zobrist, maxEval, Depth, ReturnMove, Moves,nodetype);
+            if (nodetype == 1 || (Alpha > previousEval+100) && PreviousMove.GetData() != 0) // the best move in this position was unexpectidly good
+            {
+                Evaluation.CounterMoves[PreviousMove.GetStart(),PreviousMove.GetTarget()] = ReturnMove; //implement remembering the previous move
+            }
+            TTable.Store(board.Zobrist, maxEval, Depth, ReturnMove,nodetype);
             PrincipleVariation[Depth] = ReturnMove;
             return (ReturnMove, maxEval, PrincipleVariation);
         }
@@ -162,7 +169,7 @@ namespace ChessEngine
             Alpha = ((Alpha > Eval) ? Alpha : Eval);
 
             Move[] moves = MoveGenerator.GenerateMoves(board, true); //only generates captures
-            Evaluation.OrderMoves(board, moves, NullMove, 0); // the two is a bit arbitrary but seems to be what works the best
+            Evaluation.OrderMoves(board, moves, NullMove, 0, NullMove); // the two is a bit arbitrary but seems to be what works the best
             for (int i = 0; i < 218; i++)
             {
                 if (moves[i].GetData() == 0) break;

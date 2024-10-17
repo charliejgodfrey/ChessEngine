@@ -40,13 +40,12 @@ namespace ChessEngine
         public int NodeType;
         public Move[] LegalMoves;
         public Move BestMove;
-        public TranspositionEntry(ulong zobrist, float evaluation, int depth, Move bestmove, Move[] legalmoves, int nodetype)
+        public TranspositionEntry(ulong zobrist, float evaluation, int depth, Move bestmove, int nodetype)
         {
             Zobrist = zobrist;
             Evaluation = evaluation;
             Depth = depth;
             BestMove = bestmove;
-            LegalMoves = legalmoves;
             NodeType = nodetype;
         }
     }
@@ -63,11 +62,11 @@ namespace ChessEngine
             table = new Dictionary<ulong, TranspositionEntry>();
         }
 
-        public void Store(ulong zobrist, float evaluation, int depth, Move bestmove, Move[] legalmoves, int nodetype)
+        public void Store(ulong zobrist, float evaluation, int depth, Move bestmove, int nodetype)
         {
             if (!table.ContainsKey(zobrist) || table[zobrist].Depth <= depth) //if it is a better indicator of evaluation
             {
-                table[zobrist] = new TranspositionEntry(zobrist, evaluation, depth, bestmove, legalmoves, nodetype);
+                table[zobrist] = new TranspositionEntry(zobrist, evaluation, depth, bestmove,nodetype);
             }
         }
 

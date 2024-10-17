@@ -14,10 +14,11 @@ namespace ChessEngine
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             Test.LoadTestPositions();
-            board = new Board("r1bqk1nr/pp2ppbp/3p2p1/2p5/2BnP3/2N2N2/PPPP1PPP/R1BQ1RK1");
+            //board = new Board(Test.FenDataBase[14]);
             board.PrintBoard();
             board.Eval = Evaluation.WeightedMaterial(board);
             //Test.ShowEvaluationScores();
+            //Console.WriteLine(Search.Perft(6,board));
 
             //after program has been loaded
 
@@ -27,7 +28,7 @@ namespace ChessEngine
                 // board.MakeMove(move);
                 // board.PrintBoard();
                 
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board.Copy(), 11, TTable);
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board.Copy(), 13, new TranspositionTable());
                 board.MakeMove(BestMove);
                 board.PrintBoard();
                 Console.WriteLine("computer eval: " + Eval);
