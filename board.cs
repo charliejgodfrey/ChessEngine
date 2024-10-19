@@ -22,6 +22,9 @@ namespace ChessEngine
         public ZobristHasher Hasher = new ZobristHasher();
         public ulong Zobrist;
         public float GamePhase = 0;
+        public Stack<Move> History = new Stack<Move>();
+
+
 
         //bitboards
         public Bitboard WhitePawns = new Bitboard();
@@ -85,12 +88,20 @@ namespace ChessEngine
 
         public void MakeMove(Move move) 
         {
+            History.Push(move);
             if (move.GetCapture() == 5)
             {
+                ColourToMove = (ColourToMove == 0 ? 1 : 0);
+                Console.WriteLine(MoveGenerator.InCheck(this, ColourToMove));
+                ColourToMove = (ColourToMove == 0 ? 1 : 0);
+
                 move.PrintMove();
                 PrintBoard();
                 OccupiedSquares.PrintData();
                 BlackPawns.PrintData();
+                for (int i = 0; i < History.Count(); i++) {
+                    History.Pop().PrintMove();
+                }
             }
 
             if (move.GetNullMove() == 1)
@@ -172,6 +183,7 @@ namespace ChessEngine
 
         public void UnmakeMove(Move move) //add castling, en passant
         {
+            History.Pop();
             int start = move.GetStart();
             int target = move.GetTarget();
             int piece = move.GetPiece();
@@ -228,7 +240,7 @@ namespace ChessEngine
                 if (flag >= 0b1000) //promotion
                 {
                     Pieces[6].SetBit(start); //move the piece back
-                    Pieces[(flag & 0b0011) + 1].ClearBit(target);
+                    Pieces[(flag & 0b0011) + 7].ClearBit(target);
                 } else {
                     Pieces[piece+6].SetBit(start);
                 }
@@ -476,6 +488,8 @@ namespace ChessEngine
             board.BlackShortCastle = this.BlackShortCastle;
             board.BlackLongCastle = this.BlackLongCastle;
             board.Eval = this.Eval;
+            board.GamePhase = this.GamePhase;
+            board.History = this.History;
 
             board.WhitePawns.SetData(this.WhitePawns.GetData());
             board.WhiteKnights.SetData(this.WhiteKnights.GetData());

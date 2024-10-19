@@ -140,7 +140,7 @@ namespace ChessEngine
 
         public static bool InCheck(Board board, int Player)
         {
-            int ColourAdd = Player == 0 ? 6 : 0;
+            int ColourAdd = (Player == 0 ? 6 : 0);
             int KingSquare = (Player == 0 ? board.WhiteKing.LSB() : board.BlackKing.LSB());
             if (KingSquare < 0 || KingSquare > 63){ Console.WriteLine("King Square l31: " + KingSquare);
             board.PrintBoard();board.WhiteKing.PrintData();}

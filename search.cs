@@ -114,7 +114,6 @@ namespace ChessEngine
             {
                 if (Moves[i].GetData() == 0) break; //done all moves
                 //if (!MoveGenerator.CheckLegal(board, Moves[i])) continue; //illegal move so ignore
-
                 board.MakeMove(Moves[i]);
                 Move TopMove;
                 float Score;
