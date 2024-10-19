@@ -14,28 +14,27 @@ namespace ChessEngine
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             Test.LoadTestPositions();
-            //board = new Board(Test.FenDataBase[14]);
+            //board = new Board(Test.FenDataBase[15]);
             board.PrintBoard();
             board.Eval = Evaluation.WeightedMaterial(board);
             //Test.ShowEvaluationScores();
-            //Console.WriteLine(Search.Perft(6,board));
+            //for (int i = 5; i < 6; i++) Console.WriteLine(Search.Perft(i,board));
 
             //after program has been loaded
 
             while (1==1)
             {
-                // Move move = GetUserMove(board);
-                // board.MakeMove(move);
-                // board.PrintBoard();
+                Move move = GetUserMove(board);
+                board.MakeMove(move);
+                board.PrintBoard();
                 
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board.Copy(), 13, new TranspositionTable());
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board.Copy(), 13, TTable);
                 board.MakeMove(BestMove);
                 board.PrintBoard();
                 Console.WriteLine("computer eval: " + Eval);
                 Console.WriteLine("board: " + board.Eval + " actual: " + Evaluation.WeightedMaterial(board));
                 //BestMove.PrintMove();
                 Console.WriteLine(FormatMove(BestMove));
-                break;
 
                 // (BestMove, Eval, PV) = Search.IterativeDeepeningSearch(board, 10, TTable);
                 // board.MakeMove(BestMove);

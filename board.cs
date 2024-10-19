@@ -162,7 +162,8 @@ namespace ChessEngine
             if (flag >= 0b1000) //promotion
             {
                 Pieces[(flag & 0b0011) + (ColourToMove == 0 ? 1 : 7)].SetBit(target); //promotion piece bitboard
-                Pieces[(ColourToMove == 0 ? 1 : 7)].ClearBit(target); //pawn bitboard
+                Pieces[(ColourToMove == 0 ? 0 : 6)].ClearBit(target); //pawn bitboard
+                Pieces[(ColourToMove == 0 ? 0 : 6)].ClearBit(start);
             }
             UpdateEval(move);
             UpdateZobrist(move);
@@ -201,6 +202,7 @@ namespace ChessEngine
                 if (flag >= 0b1000) //promotion
                 {
                     Pieces[0].SetBit(start); //move the piece back but into a pawn
+                    Pieces[(flag & 0b0011) + 1].ClearBit(target);
                 } else {
                     Pieces[piece].SetBit(start);
                 }
@@ -226,6 +228,7 @@ namespace ChessEngine
                 if (flag >= 0b1000) //promotion
                 {
                     Pieces[6].SetBit(start); //move the piece back
+                    Pieces[(flag & 0b0011) + 1].ClearBit(target);
                 } else {
                     Pieces[piece+6].SetBit(start);
                 }

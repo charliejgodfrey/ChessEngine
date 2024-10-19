@@ -18,6 +18,7 @@ namespace ChessEngine
         public static Bitboard[,] RookAttacks = new Bitboard[64,8196];
         public static Bitboard[,] BishopAttacks = new Bitboard[64,8196];
         public static ulong[] KingAdjacents = new ulong[64];
+        public static ulong[,] KingRays = new ulong[64, 8];
 
         public static void InitializeAttackBitboards()
         {
@@ -28,6 +29,29 @@ namespace ChessEngine
             PreComputeBishopMasks();
             LoadMagics();
             PreComputeKingAdjacents();
+            PreComputeKingRays();
+        }
+
+        public static void PreComputeKingRays()
+        {
+            int[][] directions = [[0,1],[0,-1],[1,0],[-1,0],[1,1],[-1,-1],[1,-1],[-1,1]];
+            for (int i = 0; i < 64; i++) 
+            {
+                for (int d = 0; d < 8; d++)
+                {
+                    Bitboard ray = new Bitboard();
+                    int index = i;
+                    int rank = index / 8 + directions[d][0];
+                    int file = index % 8 + directions[d][1];
+                    while (file >= 0 && file < 8 && rank >= 0 && rank < 8)
+                    {
+                        ray.SetBit(rank*8 + file);
+                        rank += directions[d][0];
+                        file += directions[d][1];
+                    }
+                    KingRays[i,d] = ray.GetData();
+                }
+            }
         }
 
         public static void PreComputeKingAdjacents()

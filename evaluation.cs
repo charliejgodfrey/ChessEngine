@@ -19,7 +19,7 @@ namespace ChessEngine
 
         public static float Evaluate(Board board)
         {
-            //WeightedMaterial(board);
+            //return WeightedMaterial(board);
             //return board.Eval;
             float WhitePawns = PawnEvaluationTable.Retrieve(board.WhitePawns.GetData());
             float BlackPawns = PawnEvaluationTable.Retrieve(board.BlackPawns.GetData());

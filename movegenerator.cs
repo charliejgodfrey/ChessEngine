@@ -29,8 +29,6 @@ namespace ChessEngine
             Move[] LegalMoves = new Move[218];
             int MoveCount = 0;
             bool IsInCheck = InCheck(board, board.ColourToMove);
-            // Console.WriteLine("in check: " + IsInCheck);
-            // board.PrintBoard();
             if (IsInCheck)
             {
                 for (int i = 0; i < 218; i++)
@@ -43,31 +41,92 @@ namespace ChessEngine
                 }
 
             } else {
-                Bitboard Pins = PotentialPins(board, board.ColourToMove);
+                (Bitboard Pins, ulong[] PinMaintains) = PotentialPins(board, board.ColourToMove);
                 for (int i = 0; i < 218; i++) //for each sudo legal move
                 {
                     if (Moves[i].GetData() == 0) break; //done all moves
-                    if (CheckSudoMove(board, Moves[i], Pins)) { //doesn't need to be checked thoroughly
-                        //Moves[i].PrintMove();
-                        LegalMoves[MoveCount] = Moves[i];
-                        MoveCount++;
-                    } else {
+                    if (Moves[i].GetPiece() == 5)
+                    {
                         if (CheckLegal(board, Moves[i])) {
                             LegalMoves[MoveCount] = Moves[i];
                             MoveCount++;
                         }
+                    }
+                    else if (!Pins.IsBitSet(Moves[i].GetStart())) { //doesn't need to be checked thoroughly
+                        //Moves[i].PrintMove();
+                        LegalMoves[MoveCount] = Moves[i];
+                        MoveCount++;
+                    } else {
+                       // Console.WriteLine("1");
+                        for (int p = 0; p < 8; p++) 
+                        {
+                            if ((PinMaintains[p] & (1Ul << Moves[i].GetStart())) > 0)
+                            {
+                                //Console.WriteLine("2");
+                                if ((PinMaintains[p] & (1UL << Moves[i].GetTarget())) > 0)
+                                {
+                                    LegalMoves[MoveCount] = Moves[i];
+                                    MoveCount++;
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                        // if (CheckLegal(board, Moves[i])) {
+                        //     LegalMoves[MoveCount] = Moves[i];
+                        //     MoveCount++;
+                        // }
                     }
                 }
             }
             return LegalMoves;
         }
 
-        public static Bitboard PotentialPins(Board board, int Player) //pieces blocking lines of sight to the king
+        public static (Bitboard, ulong[]) PotentialPins(Board board, int Player) //pieces blocking lines of sight to the king, player is the player who's pins are being detected
         {
+            ulong Pins = 0UL;
+            ulong[] StillPinnedSquares = [0Ul, 0Ul, 0Ul, 0Ul, 0UL, 0UL, 0UL, 0UL]; //places that pieces could move to which would maintain each pin (not put the king in check)
             int KingSquare = board.Pieces[Player * 6 + 5].LSB();
-            ulong KingLines = (MoveGenerator.GenerateBishopAttacks(board, KingSquare).GetData() | MoveGenerator.GenerateRookAttacks(board, KingSquare).GetData());
-            Bitboard Pins = new Bitboard(KingLines & (Player == 0 ? board.WhitePieces.GetData() : board.BlackPieces.GetData()));
-            return Pins; //not all these pieces are necesarily pinned they just theoretically could be
+            int Enemey = (Player == 0 ? 1 : 0);
+            for (int d = 0; d < 4; d++) //rook and queen pins 
+            {
+                ulong Pinner = PreComputeData.KingRays[KingSquare,d] & (board.Pieces[Enemey * 6 + 4].GetData() | board.Pieces[Enemey * 6 + 3].GetData());
+                while (Pinner > 0)
+                {
+                    int index = BitOperations.TrailingZeroCount(Pinner);
+                    ulong blockers = PreComputeData.KingRays[KingSquare,d] & PreComputeData.KingRays[index,d+(d%2 == 0?1:-1)] & board.OccupiedSquares.GetData(); 
+                    if (BitOperations.PopCount(blockers) == 1) 
+                    {
+                        Pins |= blockers;
+                        int BlockerIndex = BitOperations.TrailingZeroCount(blockers);
+                        StillPinnedSquares[d] = PreComputeData.KingRays[BlockerIndex,d] & ~(PreComputeData.KingRays[index, d]) | (1Ul << BlockerIndex);
+                    }
+                    Pinner &= ~(1Ul << index);
+                }
+            }
+            for (int d = 4; d < 8; d++) //bishop and queen pins 
+            {
+                ulong Pinner = PreComputeData.KingRays[KingSquare,d] & (board.Pieces[Enemey * 6 + 4].GetData() | board.Pieces[Enemey * 6 + 2].GetData());
+                while (Pinner > 0)
+                {
+                    int index = BitOperations.TrailingZeroCount(Pinner);
+                    ulong blockers = PreComputeData.KingRays[KingSquare,d] & PreComputeData.KingRays[index,d+(d%2 == 0?1:-1)] & board.OccupiedSquares.GetData(); //will always be at least 2 intersected for the king and pinning piece
+                    if (BitOperations.PopCount(blockers) == 1) {
+                        Pins |= blockers;
+                        int BlockerIndex = BitOperations.TrailingZeroCount(blockers);
+                        StillPinnedSquares[d] = PreComputeData.KingRays[BlockerIndex,d] & ~(PreComputeData.KingRays[index, d]) | (1Ul << BlockerIndex);
+                    }
+                    Pinner &= ~(1Ul << index);
+                }
+            }
+            Pins &= (Player == 0 ? board.WhitePieces.GetData() : board.BlackPieces.GetData());//don't care about the enemeys pieces
+            Bitboard PinBitboard = new Bitboard(Pins);
+            PinBitboard.ClearBit(KingSquare); //king is never pinned
+            // for (int i = 0; i < 8; i++)
+            // {
+            //     (new Bitboard(StillPinnedSquares[i])).PrintData();
+            // }
+            return (PinBitboard, StillPinnedSquares);
         }
 
         public static bool CheckSudoMove(Board board, Move move, Bitboard Pins) //assumes king is not in check
@@ -280,7 +339,7 @@ namespace ChessEngine
         {
             ulong mask = PreComputeData.RookMasks[square];
             ulong ReleventBits = board.OccupiedSquares.GetData() & mask;
-            ulong index = ReleventBits * PreComputeData.RookMagics[square]; //the generate move function in the magic file is incorrect, logic here is sound i think
+            ulong index = ReleventBits * PreComputeData.RookMagics[square]; 
             index = index >> (64 - Magic.RookBits[square]);
             Bitboard Attacks = new Bitboard(PreComputeData.RookAttacks[square, index].GetData());
             return Attacks;

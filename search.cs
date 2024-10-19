@@ -75,11 +75,21 @@ namespace ChessEngine
                 //return (new Move(), Evaluation.Evaluate(board), new Move[100]);
             }
 
+            float maxEval = -100000000;
+            int nodetype = 2;
+
+            bool Broken = false;
+            bool FirstMoveSearched = false;
+            float previousEval = Alpha;
+            Move ReturnMove = NullMove;
+
+            Move[] PrincipleVariation = new Move[100];
 
             Move[] Moves = MoveGenerator.GenerateMoves(board);
             Evaluation.OrderMoves(board, Moves, HashMove, Depth, PreviousMove); //this increases pruning a insanely huge amount
             
             Move BestMove = NullMove;
+            ReturnMove = Moves[0];
 
             if (Moves[0].GetData() == 0) //no legal moves
             {
@@ -95,18 +105,11 @@ namespace ChessEngine
                 board.ColourToMove = (board.ColourToMove == 0) ? 1 : 0; //undo empty move
                 if (-Score >= Beta) 
                 {
-                    TTable.Store(board.Zobrist, Beta, Depth, NullMove, 1);
-                    //storing these as type 2 nodes is super important, not sure why
+                    TTable.Store(board.Zobrist, Beta, Depth, NullMove, 1, true);
                     return (NullMove, Beta, PV);
                 }
             }
-                
-            float maxEval = -100000000;
-            Move ReturnMove = Moves[0];
-            Move[] PrincipleVariation = new Move[100];
-            int nodetype = 2;
 
-            float previousEval = Alpha;
             for (int i = 0; i < 218; i++)
             {
                 if (Moves[i].GetData() == 0) break; //done all moves
@@ -152,7 +155,7 @@ namespace ChessEngine
             {
                 Evaluation.CounterMoves[PreviousMove.GetStart(),PreviousMove.GetTarget()] = ReturnMove; //implement remembering the previous move
             }
-            TTable.Store(board.Zobrist, maxEval, Depth, ReturnMove,nodetype);
+            TTable.Store(board.Zobrist, maxEval, Depth, ReturnMove,nodetype,false);
             PrincipleVariation[Depth] = ReturnMove;
             return (ReturnMove, maxEval, PrincipleVariation);
         }
