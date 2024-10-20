@@ -12,6 +12,7 @@ namespace ChessEngine
 
         public int ColourToMove = 0; // 0 for white 1 for black
         public int EnPassantSquare;
+        public int PreviousEnPassantSquare;
         public int MoveNumber;
         public bool WhiteShortCastle = false;
         public bool WhiteLongCastle = false;
@@ -86,6 +87,21 @@ namespace ChessEngine
             return 7;
         }
 
+        public void MakeEmpty()
+        {
+            ColourToMove = (ColourToMove == 0 ? 1 : 0);
+            PreviousEnPassantSquare = EnPassantSquare;
+            EnPassantSquare = -1;
+            Zobrist ^= Hasher.SideToMove;
+        }
+
+        public void UnmakeEmpty()
+        {
+            ColourToMove = (ColourToMove == 0 ? 1 : 0);
+            EnPassantSquare = PreviousEnPassantSquare;
+            Zobrist ^= Hasher.SideToMove;
+        }
+
         public void MakeMove(Move move) 
         {
             History.Push(move);
@@ -100,7 +116,7 @@ namespace ChessEngine
                 OccupiedSquares.PrintData();
                 BlackPawns.PrintData();
                 for (int i = 0; i < History.Count(); i++) {
-                    History.Pop().PrintMove();
+                    //History.Pop().PrintMove();
                 }
             }
 

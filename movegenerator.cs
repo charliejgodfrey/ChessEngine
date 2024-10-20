@@ -544,7 +544,7 @@ namespace ChessEngine
         }
         public void PrintMove()
         {
-            if (Data == 0) return;
+            //if (Data == 0) return;
             Console.WriteLine("data: " + Convert.ToString((long)Data, 2) + ", start: " + this.GetStart() + ", target: " + this.GetTarget() + ", flags: " + this.GetFlag() + ", piece: " + this.GetPiece() + ", capture: " + this.GetCapture());
         }
     }

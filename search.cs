@@ -2,7 +2,7 @@ namespace ChessEngine
 {
     public static class Search 
     {
-        public static Move NullMove = new Move(0,0,0,0,0,1);
+        public static Move NullMove = new Move(0,0,0,0,0,0);
         public static Move[] EmptyVariation = new Move[100];
         public static int LMRThreshold = 6;
         public static int NodesEvaluated = 0;
@@ -71,7 +71,8 @@ namespace ChessEngine
 
             if (Depth == 0)
             {
-                return (new Move(), QuiescienceSearch(board) * (board.ColourToMove == 0 ? 1 : -1), new Move[100]);
+                //return (new Move(), Evaluation.Evaluate(board) * (board.ColourToMove == 0 ? 1 : -1), EmptyVariation);
+                return (NullMove, QuiescienceSearch(board, Alpha, Beta), EmptyVariation);
                 //return (new Move(), Evaluation.Evaluate(board), new Move[100]);
             }
 
@@ -86,26 +87,27 @@ namespace ChessEngine
             Move[] PrincipleVariation = new Move[100];
 
             Move[] Moves = MoveGenerator.GenerateMoves(board);
-            Evaluation.OrderMoves(board, Moves, HashMove, Depth, PreviousMove); //this increases pruning a insanely huge amount
+            Evaluation.OrderMoves(board, Moves, HashMove, Depth, PreviousMove); //this increases pruning an insanely huge amount
             
             Move BestMove = NullMove;
-            ReturnMove = Moves[0];
 
             if (Moves[0].GetData() == 0) //no legal moves
             {
                 if (MoveGenerator.InCheck(board, board.ColourToMove)) return (NullMove, -100000 * Depth, EmptyVariation); //checkmate
                 else return (NullMove, 0, EmptyVariation); //stalemate
             }
+            ReturnMove = Moves[0];
 
-            if (Depth > 2 && !MoveGenerator.InCheck(board, board.ColourToMove) &&  !MoveGenerator.InCheck(board, Math.Abs(board.ColourToMove-1)) && board.GamePhase > 20) //appropriate for Null Move pruning, add a not in endgame check
+            if (Depth > 2 && !MoveGenerator.InCheck(board, board.ColourToMove) && board.GamePhase > 20 && PreviousMove.GetData() != 0) //appropriate for Null Move pruning
             {
-                int reduction = (Depth == 3 ? 3 : 4); //this speeds things up a tonne
-                board.ColourToMove = (board.ColourToMove == 0) ? 1 : 0; //empty move
-                (Move TopMove,float Score,Move[] PV) = AlphaBeta(board, Depth - reduction, TTable, NullMove, -Beta, -Beta + 1); //perform significantly reduced depth search with narrow window
-                board.ColourToMove = (board.ColourToMove == 0) ? 1 : 0; //undo empty move
+                int reduction = 3;// (Depth == 3 ? 3 : 4); //this speeds things up a tonne
+
+                board.MakeEmpty(); //empty move
+                (Move TopMove,float Score,Move[] PV) = AlphaBeta(board, Depth - reduction, TTable, Moves[0], -Beta, -Beta + 1); //perform significantly reduced depth search with narrow window
+                board.UnmakeEmpty(); //unempty move
                 if (-Score >= Beta) 
                 {
-                    TTable.Store(board.Zobrist, Beta, Depth, NullMove, 1, true);
+                    TTable.Store(board.Zobrist, Beta, Depth-reduction, NullMove, 1, true);
                     return (NullMove, Beta, PV);
                 }
             }
@@ -115,6 +117,7 @@ namespace ChessEngine
                 if (Moves[i].GetData() == 0) break; //done all moves
                 //if (!MoveGenerator.CheckLegal(board, Moves[i])) continue; //illegal move so ignore
                 board.MakeMove(Moves[i]);
+
                 Move TopMove;
                 float Score;
                 Move[] PV;
@@ -161,7 +164,10 @@ namespace ChessEngine
 
         public static float QuiescienceSearch(Board board, float Alpha = -1000000, float Beta = 1000000)
         {
-            float Eval = Evaluation.Evaluate(board);
+            NodesEvaluated++;
+            if (board.WhiteKing.GetData() == 0) return (board.ColourToMove == 0 ? -1000000 : 100000);
+            if (board.BlackKing.GetData() == 0) return (board.ColourToMove == 0 ? -1000000 : 100000);
+            float Eval = (board.ColourToMove == 0 ? 1 : -1) * Evaluation.Evaluate(board);
             NodesEvaluated++;
             if (Eval >= Beta) 
             {
@@ -171,15 +177,10 @@ namespace ChessEngine
             Alpha = ((Alpha > Eval) ? Alpha : Eval);
 
             Move[] moves = MoveGenerator.GenerateMoves(board, true); //only generates captures
-            Evaluation.OrderMoves(board, moves, NullMove, 0, NullMove); // the two is a bit arbitrary but seems to be what works the best
+            Evaluation.OrderMoves(board, moves, NullMove, 0, NullMove);
             for (int i = 0; i < 218; i++)
             {
                 if (moves[i].GetData() == 0) break;
-                if (!moves[i].IsCapture())
-                {
-                    continue;
-                }
-
                 board.MakeMove(moves[i]);
                 Eval = -QuiescienceSearch(board, -Beta, -Alpha);
                 board.UnmakeMove(moves[i]);
@@ -189,6 +190,7 @@ namespace ChessEngine
                 }
                 Alpha = ((Alpha > Eval) ? Alpha : Eval);
             }
+            
             return Alpha;
         }
 
@@ -196,6 +198,8 @@ namespace ChessEngine
         {
             if (depth == 0)
             {
+                //float eval = board.Eval;
+                //Evaluation.WeightedMaterial(board);
                 //Program.PrintMoves(board);
                 return 1;
             }
@@ -207,7 +211,7 @@ namespace ChessEngine
                 {
                     break;
                 }
-                if (!MoveGenerator.CheckLegal(board, moves[i])) continue;
+                //if (!MoveGenerator.CheckLegal(board, moves[i])) continue;
                 board.MakeMove(moves[i]);
                 int posy = Perft(depth - 1, board);
                 board.UnmakeMove(moves[i]);
