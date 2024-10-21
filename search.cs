@@ -4,7 +4,7 @@ namespace ChessEngine
     {
         public static Move NullMove = new Move(0,0,0,0,0,0);
         public static Move[] EmptyVariation = new Move[100];
-        public static int LMRThreshold = 6;
+        public static int LMRThreshold = 4;
         public static int NodesEvaluated = 0;
 
         public static (Move, float, Move[]) IterativeDeepeningSearch(Board board, int maxDepth, TranspositionTable TTable)
@@ -72,7 +72,7 @@ namespace ChessEngine
             if (Depth == 0)
             {
                 //return (new Move(), Evaluation.Evaluate(board) * (board.ColourToMove == 0 ? 1 : -1), EmptyVariation);
-                return (NullMove, QuiescienceSearch(board, Alpha, Beta), EmptyVariation);
+                return (NullMove, QuiescienceSearch(board, TTable, Alpha, Beta), EmptyVariation);
                 //return (new Move(), Evaluation.Evaluate(board), new Move[100]);
             }
 
@@ -115,19 +115,34 @@ namespace ChessEngine
             for (int i = 0; i < 218; i++)
             {
                 if (Moves[i].GetData() == 0) break; //done all moves
-                //if (!MoveGenerator.CheckLegal(board, Moves[i])) continue; //illegal move so ignore
                 board.MakeMove(Moves[i]);
 
                 Move TopMove;
                 float Score;
                 Move[] PV;
 
-                if (i > LMRThreshold && Depth > 1) // idea of this is to reduce search of bad variations
+                if (i < LMRThreshold || Depth < 3) //what it thinks the best move is 
                 {
-                    (TopMove, Score, PV) = AlphaBeta(board, Depth - 2, TTable, Moves[i], -Beta, -Alpha);
-                } else { // if it looks like a move worth searching
-                    (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, Moves[i], -Beta, -Alpha);
+                    (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, Moves[i], -Beta, -Alpha); //search at full depth
+                } else {
+                    int reduction = Math.Max(1,(int)Math.Floor(0.7844d + Math.Log(Depth)*Math.Log(board.MoveNumber)));
+                    (TopMove, Score, PV) = AlphaBeta(board, Math.Max(0,Depth - 1 - reduction), TTable, Moves[i], -Alpha - 1, -Alpha); //reduced narrow window search
+                    if (-Score > Alpha) //this was actually a good move we should have searched in more detail
+                    {
+                        (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, Moves[i], -Beta, -Alpha); //search at full depth
+                    }
                 }
+
+                // if (i > LMRThreshold && Depth > 3 && Moves[i].GetCapture() == 7) // idea of this is to reduce search of bad variations
+                // {
+                //     int reduction = (i-LMRThreshold < 6 ? 1 : Depth / 3);
+                //     (TopMove, Score, PV) = AlphaBeta(board, Depth - reduction, TTable, Moves[i], -Alpha - 1, -Alpha); //reduced narrow window search
+                //     if (-Score > Alpha) //this was actually a good move we should have searched in more detail
+                //     {
+                //         (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, Moves[i], -Beta, -Alpha); //search at full depth
+                //     }
+                // } else { // if it looks like a move worth searching
+                //     (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, Moves[i], -Beta, -Alpha);
                 // }
                 board.UnmakeMove(Moves[i]);
                 float Eval = -Score; // good move for opponent is bad for us
@@ -162,35 +177,69 @@ namespace ChessEngine
             return (ReturnMove, maxEval, PrincipleVariation);
         }
 
-        public static float QuiescienceSearch(Board board, float Alpha = -1000000, float Beta = 1000000)
+        public static float QuiescienceSearch(Board board, TranspositionTable TTable, float Alpha = -1000000, float Beta = 1000000)
         {
             NodesEvaluated++;
+            TranspositionEntry entry = TTable.Retrieve(board.Zobrist);
+            Move HashMove = NullMove;
+            if (entry != null) 
+            {
+                HashMove = entry.BestMove;
+                if (entry.NodeType == 0) // exact value
+                {
+                    return entry.Evaluation;
+                }
+                else if (entry.NodeType == 1) // lower bound
+                {
+                    Alpha = ((Alpha > entry.Evaluation) ? Alpha : entry.Evaluation);
+                    if (Alpha >= Beta)
+                    {
+                        return entry.Evaluation;
+                    }
+                    //HashMove.PrintMove();
+                }
+                else if (entry.NodeType == 2) // upper bound
+                {
+                    Beta = ((Beta < entry.Evaluation) ? Beta : entry.Evaluation);
+                    if (entry.Evaluation <= Alpha)
+                    {
+                        return entry.Evaluation;
+                    }
+                }
+            }
+
             if (board.WhiteKing.GetData() == 0) return (board.ColourToMove == 0 ? -1000000 : 100000);
             if (board.BlackKing.GetData() == 0) return (board.ColourToMove == 0 ? -1000000 : 100000);
             float Eval = (board.ColourToMove == 0 ? 1 : -1) * Evaluation.Evaluate(board);
-            NodesEvaluated++;
             if (Eval >= Beta) 
             {
+                TTable.Store(board.Zobrist, Beta, 0, NullMove,1,false);
                 return Beta;
             }
 
             Alpha = ((Alpha > Eval) ? Alpha : Eval);
 
             Move[] moves = MoveGenerator.GenerateMoves(board, true); //only generates captures
-            Evaluation.OrderMoves(board, moves, NullMove, 0, NullMove);
+            Evaluation.OrderMoves(board, moves, (HashMove.GetCapture() != 7 && HashMove.GetData() != 0)?HashMove : NullMove, 0, NullMove);
             for (int i = 0; i < 218; i++)
             {
                 if (moves[i].GetData() == 0) break;
                 board.MakeMove(moves[i]);
-                Eval = -QuiescienceSearch(board, -Beta, -Alpha);
+                Eval = -QuiescienceSearch(board, TTable, -Beta, -Alpha);
                 board.UnmakeMove(moves[i]);
                 if (Eval >= Beta)
                 {
+                    TTable.Store(board.Zobrist, Beta, 0, NullMove,1,false);
                     return Beta;
                 }
                 Alpha = ((Alpha > Eval) ? Alpha : Eval);
             }
-            
+            if (Alpha == Eval)
+            {
+                TTable.Store(board.Zobrist, Beta, 0, NullMove,0,false);
+            } else {
+                TTable.Store(board.Zobrist, Beta, 0, NullMove,2,false);
+            }
             return Alpha;
         }
 

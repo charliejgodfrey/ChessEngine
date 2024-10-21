@@ -35,13 +35,13 @@ namespace ChessEngine
             }
             float WhiteKingSafety = 0;// EvaluateKingSafety(board, 0) * 10; not sure this actually helps
             float BlackKingSafety = 0;//EvaluateKingSafety(board, 1) * 10;
-            float PieceDefense = (DefendedMinorPieces(board, 0) - DefendedMinorPieces(board, 1)) * 4;
+            float PieceDefense = (DefendedMinorPieces(board, 0) - DefendedMinorPieces(board, 1)) * 5;
             (float WhiteMobility, ulong WhiteAttacks) = EvaluateMobility(board, 0);
             (float BlackMobility, ulong BlackAttacks) = EvaluateMobility(board, 1);
             //Console.WriteLine("white: " + WhiteMobility + " black: " + BlackMobility);
             float Mobility = 10*(WhiteMobility - BlackMobility);
             float PieceCoordination = EvaluateAttackBitboard(board, WhiteAttacks, BlackAttacks) * 10;
-            float Pins = (BitOperations.PopCount(DetectPinnedPieces(board, BlackAttacks, 0)) - BitOperations.PopCount(DetectPinnedPieces(board, WhiteAttacks, 1))) * 20;
+            float Pins = (BitOperations.PopCount(DetectPinnedPieces(board, BlackAttacks, 0)) - BitOperations.PopCount(DetectPinnedPieces(board, WhiteAttacks, 1))) * 10;
             float Material = board.Eval;//WeightedMaterial(board);
             // avgMaterial += Math.Abs(Material);
             // avgPositional += Math.Abs(WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination);
@@ -142,7 +142,7 @@ namespace ChessEngine
             int PawnMoves = BitOperations.PopCount(ForwardMoves);
             AttackedSquares |= (WestCapture | EastCapture);
             int CentreControl = BitOperations.PopCount(AttackedSquares & 0x0000003C3C000000);
-            return (KnightMoves + BishopMoves + RookMoves + QueenMoves/4 + PawnMoves + CentreControl * 3, AttackedSquares); //to discourage getting the queen out in the opening
+            return (KnightMoves + BishopMoves + RookMoves + (board.GamePhase > 32 ? (1/2) : 1) * QueenMoves + PawnMoves + CentreControl * 3, AttackedSquares); 
         }
 
         public static int DefendedMinorPieces(Board board, int Player)

@@ -14,7 +14,7 @@ namespace ChessEngine
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             Test.LoadTestPositions();
-            board = new Board("3r4/p4kp1/1pn1b2p/1R6/P3pNpP/3p4/3N1P2/4K3");
+            //board = new Board(Test.FenDataBase[14]);
             board.PrintBoard();
             board.Eval = Evaluation.WeightedMaterial(board);
             //PrintMoves(board);
@@ -25,7 +25,10 @@ namespace ChessEngine
 
             while (1==1)
             {
-                
+                Move move = GetUserMove(board);
+                board.MakeMove(move);
+                board.PrintBoard();
+
                 (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 13, TTable);
                 board.MakeMove(BestMove);
                 board.PrintBoard();
@@ -34,10 +37,6 @@ namespace ChessEngine
                 //BestMove.PrintMove();
                 Console.WriteLine(FormatMove(BestMove));
                 //break;
-
-                Move move = GetUserMove(board);
-                board.MakeMove(move);
-                board.PrintBoard();
 
                 // (BestMove, Eval, PV) = Search.IterativeDeepeningSearch(board, 10, TTable);
                 // board.MakeMove(BestMove);

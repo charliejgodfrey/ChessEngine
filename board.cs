@@ -22,7 +22,7 @@ namespace ChessEngine
         public float Eval = 0;
         public ZobristHasher Hasher = new ZobristHasher();
         public ulong Zobrist;
-        public float GamePhase = 0;
+        public float GamePhase = 39;
         public Stack<Move> History = new Stack<Move>();
 
 
@@ -89,6 +89,7 @@ namespace ChessEngine
 
         public void MakeEmpty()
         {
+            MoveNumber++;
             ColourToMove = (ColourToMove == 0 ? 1 : 0);
             PreviousEnPassantSquare = EnPassantSquare;
             EnPassantSquare = -1;
@@ -97,6 +98,7 @@ namespace ChessEngine
 
         public void UnmakeEmpty()
         {
+            MoveNumber--;
             ColourToMove = (ColourToMove == 0 ? 1 : 0);
             EnPassantSquare = PreviousEnPassantSquare;
             Zobrist ^= Hasher.SideToMove;
@@ -104,6 +106,7 @@ namespace ChessEngine
 
         public void MakeMove(Move move) 
         {
+            MoveNumber++;
             History.Push(move);
             if (move.GetCapture() == 5)
             {
@@ -199,6 +202,7 @@ namespace ChessEngine
 
         public void UnmakeMove(Move move) //add castling, en passant
         {
+            MoveNumber--;
             History.Pop();
             int start = move.GetStart();
             int target = move.GetTarget();
@@ -325,7 +329,7 @@ namespace ChessEngine
             int target = move.GetTarget();
             int start = move.GetStart();
             int capture = move.GetCapture();
-            GamePhase -= Evaluation.MaterialValues[capture];
+            GamePhase += Evaluation.MaterialValues[capture];
 
 
             if (ColourToMove == 1) //white is unmaking the move
