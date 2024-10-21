@@ -101,6 +101,7 @@ namespace ChessEngine
             MoveNumber--;
             ColourToMove = (ColourToMove == 0 ? 1 : 0);
             EnPassantSquare = PreviousEnPassantSquare;
+            PreviousEnPassantSquare = -1;
             Zobrist ^= Hasher.SideToMove;
         }
 
