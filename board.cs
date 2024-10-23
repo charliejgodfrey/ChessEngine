@@ -22,7 +22,7 @@ namespace ChessEngine
         public float Eval = 0;
         public ZobristHasher Hasher = new ZobristHasher();
         public ulong Zobrist;
-        public float GamePhase = 39;
+        public float GamePhase = 7800;
         public Stack<Move> History = new Stack<Move>();
 
 

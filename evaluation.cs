@@ -19,7 +19,7 @@ namespace ChessEngine
 
         public static float Evaluate(Board board)
         {
-            //return WeightedMaterial(board);
+            return WeightedMaterial(board);
             //return board.Eval;
             float WhitePawns = PawnEvaluationTable.Retrieve(board.WhitePawns.GetData());
             float BlackPawns = PawnEvaluationTable.Retrieve(board.BlackPawns.GetData());
@@ -39,17 +39,10 @@ namespace ChessEngine
             (float WhiteMobility, ulong WhiteAttacks) = EvaluateMobility(board, 0);
             (float BlackMobility, ulong BlackAttacks) = EvaluateMobility(board, 1);
             //Console.WriteLine("white: " + WhiteMobility + " black: " + BlackMobility);
-            float Mobility = 10*(WhiteMobility - BlackMobility);
-            float PieceCoordination = EvaluateAttackBitboard(board, WhiteAttacks, BlackAttacks) * 10;
-            float Pins = (BitOperations.PopCount(DetectPinnedPieces(board, BlackAttacks, 0)) - BitOperations.PopCount(DetectPinnedPieces(board, WhiteAttacks, 1))) * 10;
-            float Material = board.Eval;//WeightedMaterial(board);
-            // avgMaterial += Math.Abs(Material);
-            // avgPositional += Math.Abs(WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination);
-            // avgDiffer += Math.Abs((WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination));
-            // count++;
-            // Console.WriteLine("Mobility Score: " + Mobility + " Piece Coordination: " + PieceCoordination + " Piece Defense: " + PieceDefense + " wpawn: " + WhitePawns + " bpawn: " + BlackPawns);
-            // Console.WriteLine("sum of non material: " + (WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination));
-            // Console.WriteLine("weighted material: " + board.Eval);
+            float Mobility = 5*(WhiteMobility - BlackMobility);
+            float PieceCoordination = EvaluateAttackBitboard(board, WhiteAttacks, BlackAttacks) * 5;
+            float Pins = (BitOperations.PopCount(DetectPinnedPieces(board, BlackAttacks, 0)) - BitOperations.PopCount(DetectPinnedPieces(board, WhiteAttacks, 1))) * 5;
+            float Material = WeightedMaterial(board);
             return Material + WhitePawns + WhiteKingSafety - BlackPawns - BlackKingSafety + Mobility + PieceCoordination;
         }
 
@@ -57,7 +50,7 @@ namespace ChessEngine
         {
             int KingSquare = board.Pieces[Player * 6 + 5].LSB();
             ulong UnderAttack = (Player == 0 ? board.WhitePieces.GetData() : board.BlackPieces.GetData()) & EnemyAttacks;
-            ulong KingLines = (MoveGenerator.GenerateBishopAttacks(board, KingSquare).GetData() | MoveGenerator.GenerateRookAttacks(board, KingSquare).GetData());
+            ulong KingLines = (MoveGenerator.GenerateBishopAttacks(board, KingSquare) | MoveGenerator.GenerateRookAttacks(board, KingSquare));
             ulong Pins = KingLines & UnderAttack;
             return Pins;
         }
@@ -101,39 +94,39 @@ namespace ChessEngine
             }
             
             int BishopMoves = 0;
-            Bitboard Bishops = new Bitboard(board.Pieces[ColourAdd+2].GetData());
-            while (Bishops.GetData() > 0) //for each bishop
+            ulong Bishops = board.Pieces[ColourAdd+2].GetData();
+            while (Bishops > 0) //for each bishop
             {
-                int square = Bishops.LSB();
-                ulong Attacks = MoveGenerator.GenerateBishopAttacks(board, square).GetData();
+                int square = BitOperations.TrailingZeroCount(Bishops);
+                ulong Attacks = MoveGenerator.GenerateBishopAttacks(board, square);
                 AttackedSquares |= Attacks;
                 Attacks &= ~FriendlyPieces.GetData();
                 BishopMoves += BitOperations.PopCount(Attacks);
-                Bishops.ClearBit(square);
+                Bishops &= ~(1UL << square);
             }
 
             int RookMoves = 0;
-            Bitboard Rooks = new Bitboard(board.Pieces[ColourAdd+3].GetData());
-            while (Rooks.GetData() > 0) //for each rook
+            ulong Rooks = board.Pieces[ColourAdd+3].GetData();
+            while (Rooks > 0) //for each rook
             {
-                int square = Rooks.LSB();
-                ulong Attacks = MoveGenerator.GenerateRookAttacks(board, square).GetData();
+                int square = BitOperations.TrailingZeroCount(Rooks);
+                ulong Attacks = MoveGenerator.GenerateRookAttacks(board, square);
                 AttackedSquares |= Attacks;
                 Attacks &= ~FriendlyPieces.GetData();
                 RookMoves += BitOperations.PopCount(Attacks);
-                Rooks.ClearBit(square);
+                Rooks &= ~(1UL << square);
             }
 
             int QueenMoves = 0;
-            Bitboard Queens = new Bitboard(board.Pieces[ColourAdd+4].GetData());
-            while (Queens.GetData() > 0) //for each queen
+            ulong Queens = board.Pieces[ColourAdd+4].GetData();
+            while (Queens > 0) //for each queen
             {
-                int square = Queens.LSB();
-                ulong Attacks = (MoveGenerator.GenerateBishopAttacks(board, square).GetData() | MoveGenerator.GenerateRookAttacks(board, square).GetData());
+                int square = BitOperations.TrailingZeroCount(Queens);
+                ulong Attacks = (MoveGenerator.GenerateBishopAttacks(board, square) | MoveGenerator.GenerateRookAttacks(board, square));
                 AttackedSquares |= Attacks;
                 Attacks &= ~FriendlyPieces.GetData();
                 QueenMoves += BitOperations.PopCount(Attacks);
-                Queens.ClearBit(square);
+                Queens &= ~(1UL << square);
             }
 
             ulong EastCapture = ((board.Pieces[ColourAdd].GetData() << 9) & 0x7F7F7F7F7F7F7F7F); //this essentially checks there is a piece that can be captured and accounts for overflow stuff
@@ -261,27 +254,38 @@ namespace ChessEngine
 
         public static float WeightedMaterial(Board board)
         {
-            float score = 0;
             float NewGamePhase = 0;
+            float MiddleScoreW = 0;
+            float MiddleScoreB = 0;
+            float EndScoreW = 0;
+            float EndScoreB = 0;
             for (int p = 0; p < 12; p++)
             {
                 for (int i = 0; i < 64; i++)
                 {
                     if (board.Pieces[p].IsBitSet(i)) 
                     {
-                        score += MaterialValues[p];
-                        NewGamePhase += Math.Abs(MaterialValues[p]);
                         if (p < 6) //white piece
                         {
-                            score += PieceSquareTable[p][Evaluation.Flip[i]];
+                            NewGamePhase += Math.Abs(MaterialValues[p]);
+                            MiddleScoreW += MaterialValues[p];
+                            EndScoreW += MaterialValues[p];
+                            MiddleScoreW += mg_tables[p][Evaluation.Flip[i]];
+                            EndScoreW += eg_tables[p][Evaluation.Flip[i]];
                         } else{ //black piece
-                            score -= PieceSquareTable[p-6][i];
+                            NewGamePhase += Math.Abs(MaterialValues[p-6]);
+                            MiddleScoreB += MaterialValues[p-6];
+                            EndScoreB += MaterialValues[p-6];
+                            MiddleScoreB += mg_tables[p-6][i];
+                            EndScoreB += eg_tables[p-6][i];
                         }
                     }
                 }
             }
-            board.GamePhase = NewGamePhase;
-            return score;
+            board.GamePhase = (float)NewGamePhase;
+            int mgPhase = (int)NewGamePhase;
+            int egPhase = 28000 - mgPhase;
+            return ((MiddleScoreW-MiddleScoreB)*mgPhase + (EndScoreW-EndScoreB) * egPhase)/28000;
         }
 
         public static void OrderMoves(Board board, Move[] Moves, Move HashMove, int Depth, Move PreviousMove)
@@ -361,6 +365,158 @@ namespace ChessEngine
         }
 
         // piece square tables used for evaluation
+        
+        //second set of piece square tables
+        public static int[] mg_pawn_table = {
+            0,   0,   0,   0,   0,   0,  0,   0,
+            98, 134,  61,  95,  68, 126, 34, -11,
+            -6,   7,  26,  31,  65,  56, 25, -20,
+            -14,  13,   6,  21,  23,  12, 17, -23,
+            -27,  -2,  -5,  12,  17,   6, 10, -25,
+            -26,  -4,  -4, -10,   3,   3, 33, -12,
+            -35,  -1, -20, -23, -15,  24, 38, -22,
+            0,   0,   0,   0,   0,   0,  0,   0,
+        };
+
+        public static int[] eg_pawn_table = {
+            0,   0,   0,   0,   0,   0,   0,   0,
+            178, 173, 158, 134, 147, 132, 165, 187,
+            94, 100,  85,  67,  56,  53,  82,  84,
+            32,  24,  13,   5,  -2,   4,  17,  17,
+            13,   9,  -3,  -7,  -7,  -8,   3,  -1,
+            4,   7,  -6,   1,   0,  -5,  -1,  -8,
+            13,   8,   8,  10,  13,   0,   2,  -7,
+            0,   0,   0,   0,   0,   0,   0,   0,
+        };
+
+        public static int[] mg_knight_table = {
+            -167, -89, -34, -49,  61, -97, -15, -107,
+            -73, -41,  72,  36,  23,  62,   7,  -17,
+            -47,  60,  37,  65,  84, 129,  73,   44,
+            -9,  17,  19,  53,  37,  69,  18,   22,
+            -13,   4,  16,  13,  28,  19,  21,   -8,
+            -23,  -9,  12,  10,  19,  17,  25,  -16,
+            -29, -53, -12,  -3,  -1,  18, -14,  -19,
+            -105, -21, -58, -33, -17, -28, -19,  -23,
+        };
+
+        public static int[] eg_knight_table = {
+            -58, -38, -13, -28, -31, -27, -63, -99,
+            -25,  -8, -25,  -2,  -9, -25, -24, -52,
+            -24, -20,  10,   9,  -1,  -9, -19, -41,
+            -17,   3,  22,  22,  22,  11,   8, -18,
+            -18,  -6,  16,  25,  16,  17,   4, -18,
+            -23,  -3,  -1,  15,  10,  -3, -20, -22,
+            -42, -20, -10,  -5,  -2, -20, -23, -44,
+            -29, -51, -23, -15, -22, -18, -50, -64,
+        };
+
+        public static int[] mg_bishop_table = {
+            -29,   4, -82, -37, -25, -42,   7,  -8,
+            -26,  16, -18, -13,  30,  59,  18, -47,
+            -16,  37,  43,  40,  35,  50,  37,  -2,
+            -4,   5,  19,  50,  37,  37,   7,  -2,
+            -6,  13,  13,  26,  34,  12,  10,   4,
+            0,  15,  15,  15,  14,  27,  18,  10,
+            4,  15,  16,   0,   7,  21,  33,   1,
+            -33,  -3, -14, -21, -13, -12, -39, -21,
+        };
+
+        public static int[] eg_bishop_table = {
+            -14, -21, -11,  -8, -7,  -9, -17, -24,
+            -8,  -4,   7, -12, -3, -13,  -4, -14,
+            2,  -8,   0,  -1, -2,   6,   0,   4,
+            -3,   9,  12,   9, 14,  10,   3,   2,
+            -6,   3,  13,  19,  7,  10,  -3,  -9,
+            -12,  -3,   8,  10, 13,   3,  -7, -15,
+            -14, -18,  -7,  -1,  4,  -9, -15, -27,
+            -23,  -9, -23,  -5, -9, -16,  -5, -17,
+        };
+
+        public static int[] mg_rook_table = {
+            32,  42,  32,  51, 63,  9,  31,  43,
+            27,  32,  58,  62, 80, 67,  26,  44,
+            -5,  19,  26,  36, 17, 45,  61,  16,
+            -24, -11,   7,  26, 24, 35,  -8, -20,
+            -36, -26, -12,  -1,  9, -7,   6, -23,
+            -45, -25, -16, -17,  3,  0,  -5, -33,
+            -44, -16, -20,  -9, -1, 11,  -6, -71,
+            -19, -13,   1,  17, 16,  7, -37, -26,
+        };
+
+        public static int[] eg_rook_table = {
+            13, 10, 18, 15, 12,  12,   8,   5,
+            11, 13, 13, 11, -3,   3,   8,   3,
+            7,  7,  7,  5,  4,  -3,  -5,  -3,
+            4,  3, 13,  1,  2,   1,  -1,   2,
+            3,  5,  8,  4, -5,  -6,  -8, -11,
+            -4,  0, -5, -1, -7, -12,  -8, -16,
+            -6, -6,  0,  2, -9,  -9, -11,  -3,
+            -9,  2,  3, -1, -5, -13,   4, -20,
+        };
+
+        public static int[] mg_queen_table = {
+            -28,   0,  29,  12,  59,  44,  43,  45,
+            -24, -39,  -5,   1, -16,  57,  28,  54,
+            -13, -17,   7,   8,  29,  56,  47,  57,
+            -27, -27, -16, -16,  -1,  17,  -2,   1,
+            -9, -26,  -9, -10,  -2,  -4,   3,  -3,
+            -14,   2, -11,  -2,  -5,   2,  14,   5,
+            -35,  -8,  11,   2,   8,  15,  -3,   1,
+            -1, -18,  -9,  10, -15, -25, -31, -50,
+        };
+
+        public static int[] eg_queen_table = {
+            -9,  22,  22,  27,  27,  19,  10,  20,
+            -17,  20,  32,  41,  58,  25,  30,   0,
+            -20,   6,   9,  49,  47,  35,  19,   9,
+            3,  22,  24,  45,  57,  40,  57,  36,
+            -18,  28,  19,  47,  31,  34,  39,  23,
+            -16, -27,  15,   6,   9,  17,  10,   5,
+            -22, -23, -30, -16, -16, -23, -36, -32,
+            -33, -28, -22, -43,  -5, -32, -20, -41,
+        };
+
+        public static int[] mg_king_table = {
+            -65,  23,  16, -15, -56, -34,   2,  13,
+            29,  -1, -20,  -7,  -8,  -4, -38, -29,
+            -9,  24,   2, -16, -20,   6,  22, -22,
+            -17, -20, -12, -27, -30, -25, -14, -36,
+            -49,  -1, -27, -39, -46, -44, -33, -51,
+            -14, -14, -22, -46, -44, -30, -15, -27,
+            1,   7,  -8, -64, -43, -16,   9,   8,
+            -15,  36,  12, -54,   8, -28,  24,  14,
+        };
+
+        public static int[] eg_king_table = {
+            -74, -35, -18, -18, -11,  15,   4, -17,
+            -12,  17,  14,  17,  17,  38,  23,  11,
+            10,  17,  23,  15,  20,  45,  44,  13,
+            -8,  22,  24,  27,  26,  33,  26,   3,
+            -18,  -4,  21,  24,  27,  23,   9, -11,
+            -19,  -3,  11,  21,  23,  16,   7,  -9,
+            -27, -11,   4,  13,  14,   4,  -5, -17,
+            -53, -34, -21, -11, -28, -14, -24, -43
+        };
+
+        public static int[][] mg_tables = {
+            mg_pawn_table,
+            mg_knight_table,
+            mg_bishop_table,
+            mg_rook_table,
+            mg_queen_table,
+            mg_king_table,
+        };
+
+        public static int[][] eg_tables = {
+            eg_pawn_table,
+            eg_knight_table,
+            eg_bishop_table,
+            eg_rook_table,
+            eg_queen_table,
+            eg_king_table,
+        };
+        //original piece square tables
 
         public static int[] PawnTable = { 
             0,  0,  0,  0,  0,  0,  0,  0,
