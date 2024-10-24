@@ -108,36 +108,30 @@ namespace ChessEngine
         public void MakeMove(Move move) 
         {
             MoveNumber++;
-            History.Push(move);
-            if (move.GetCapture() == 5)
-            {
-                ColourToMove = (ColourToMove == 0 ? 1 : 0);
-                Console.WriteLine(MoveGenerator.InCheck(this, ColourToMove));
-                ColourToMove = (ColourToMove == 0 ? 1 : 0);
+            //History.Push(move);
+            // if (move.GetCapture() == 5)
+            // {
+            //     ColourToMove = (ColourToMove == 0 ? 1 : 0);
+            //     Console.WriteLine(MoveGenerator.InCheck(this, ColourToMove));
+            //     ColourToMove = (ColourToMove == 0 ? 1 : 0);
 
-                move.PrintMove();
-                PrintBoard();
-                OccupiedSquares.PrintData();
-                BlackPawns.PrintData();
-                for (int i = 0; i < History.Count(); i++) {
-                    //History.Pop().PrintMove();
-                }
-            }
+            //     move.PrintMove();
+            //     PrintBoard();
+            //     OccupiedSquares.PrintData();
+            //     BlackPawns.PrintData();
+            //     for (int i = 0; i < History.Count(); i++) {
+            //         //History.Pop().PrintMove();
+            //     }
+            // }
 
-            if (move.GetNullMove() == 1)
-            {
-                ColourToMove = (ColourToMove == 0 ? 1 : 0);
-                Zobrist ^= Hasher.SideToMove;
-                return;
-            }
-            if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
-            {
-                this.Castle((move.GetFlag() == 0b0010) ? 1 : 2);
-                UpdateEval(move);
-                UpdateZobrist(move);    
-                ColourToMove = (ColourToMove == 0 ? 1 : 0);
-                return;
-            }
+            // if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
+            // {
+            //     this.Castle((move.GetFlag() == 0b0010) ? 1 : 2);
+            //     UpdateEval(move);
+            //     UpdateZobrist(move);    
+            //     ColourToMove = (ColourToMove == 0 ? 1 : 0);
+            //     return;
+            // }
             int start = move.GetStart();
             int target = move.GetTarget();
             int piece = move.GetPiece();
@@ -151,22 +145,28 @@ namespace ChessEngine
             {
                 WhitePieces.ClearBit(start); //clear the start square
                 WhitePieces.SetBit(target); //target square is now occupied for white
-                BlackPieces.ClearBit(target); //any piece on the target square is captured
                 //for piece specific bitboards
                 Pieces[piece].ClearBit(start);
                 Pieces[piece].SetBit(target);
                 //taking into account captures
-                if (capture != 0b111) Pieces[capture + 6].ClearBit(target);
+                if (capture != 0b111) 
+                {
+                    Pieces[capture + 6].ClearBit(target);
+                    BlackPieces.ClearBit(target); //any piece on the target square is captured
+                }
                 //for (int i = 6; i<12;i++) Pieces[i].ClearBit(target);
             } else { //black moving
                 BlackPieces.ClearBit(start);
                 BlackPieces.SetBit(target);
-                WhitePieces.ClearBit(target);
                 //for the piece specific bitboards
                 Pieces[piece + 6].ClearBit(start); //the +6 is for offsetting the piece to the index for the black pieces
                 Pieces[piece + 6].SetBit(target);
                 //taking into account captures
-                if (capture != 0b111) Pieces[capture].ClearBit(target);
+                if (capture != 0b111)
+                { 
+                    Pieces[capture].ClearBit(target);
+                    WhitePieces.ClearBit(target);
+                }
                 //for (int i = 0; i<6;i++) Pieces[i].ClearBit(target);
             }
 
@@ -196,7 +196,7 @@ namespace ChessEngine
                 Pieces[(ColourToMove == 0 ? 0 : 6)].ClearBit(target); //pawn bitboard
                 Pieces[(ColourToMove == 0 ? 0 : 6)].ClearBit(start);
             }
-            UpdateEval(move);
+            //UpdateEval(move);
             UpdateZobrist(move);
             ColourToMove = (ColourToMove == 0 ? 1 : 0);
         }
@@ -204,7 +204,7 @@ namespace ChessEngine
         public void UnmakeMove(Move move) //add castling, en passant
         {
             MoveNumber--;
-            History.Pop();
+            //History.Pop();
             int start = move.GetStart();
             int target = move.GetTarget();
             int piece = move.GetPiece();
@@ -275,7 +275,7 @@ namespace ChessEngine
             if (flag == 0b0001) { //double pawn push
                 EnPassantSquare = -1;
             }
-            UnupdateEval(move);
+            //UnupdateEval(move);
             if (flag == 0 || flag == 0b0100 || flag == 0b0001) {
                 ColourToMove = (ColourToMove == 0 ? 1 : 0);
                 UpdateZobrist(move);

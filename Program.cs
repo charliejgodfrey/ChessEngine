@@ -8,35 +8,46 @@ namespace ChessEngine
         static void Main()
         {
             //setup stuff
+            //Console.WriteLine(Magic.FindMagic(27, PreComputeData.BishopMasks, false));
             Board board = new Board();
             PreComputeData.InitializeAttackBitboards();
             TranspositionTable TTable = new TranspositionTable();
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             Test.LoadTestPositions();
-            //board = new Board("8/k7/3p4/p2P1p2/P2P1P2/8/8/K7");
+            //board = new Board(Test.FenDataBase[15]);
             board.PrintBoard();
             board.Eval = Evaluation.WeightedMaterial(board);
-            //PrintMoves(board);
+            //(bool Check, bool DoubleCheck, ulong Blocks) = MoveGenerator.FindCheck(board, board.ColourToMove);
+            //(new Bitboard(Blocks)).PrintData();
+            // PrintMoves(board);
+            // board.PrintBoard();
+            // PrintMoves(board);
             //Test.ShowEvaluationScores();
-            //for (int i = 6; i < 7; i++) Console.WriteLine(Search.Perft(i,board));
+            for (int i = 0; i < 7; i++) Console.WriteLine(Search.Perft(i,board));
+            // for (int i = 0; i < 10000000; i++)
+            // {
+            //     MoveGenerator.GenerateMoves(board, false);
+            // }
 
             //after program has been loaded
 
-            while (1==1)
+            while (1==2)
             {
                 Console.WriteLine("board: " + board.Eval + " actual: " + Evaluation.WeightedMaterial(board));
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 12, TTable);
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 10, TTable);
                 board.MakeMove(BestMove);
                 board.PrintBoard();
                 Console.WriteLine("computer eval: " + Eval);
                 Console.WriteLine("board: " + board.Eval + " actual: " + Evaluation.WeightedMaterial(board));
                 //BestMove.PrintMove();
                 Console.WriteLine(FormatMove(BestMove));
-                //break;
-                // Move move = GetUserMove(board);
-                // board.MakeMove(move);
-                // board.PrintBoard();
+                Console.WriteLine(((float)MoveGenerator.fullcheck/(float)(MoveGenerator.fullcheck + MoveGenerator.normal)*100) + "% of moves checked in depth");
+                Console.WriteLine("full: " + MoveGenerator.fullcheck + "normal: " + MoveGenerator.normal);
+                break;
+                Move move = GetUserMove(board);
+                board.MakeMove(move);
+                board.PrintBoard();
 
                 // (BestMove, Eval, PV) = Search.IterativeDeepeningSearch(board, 10, TTable);
                 // board.MakeMove(BestMove);
@@ -70,7 +81,7 @@ namespace ChessEngine
             for (int i = 0; i < 218; i++)
             {
                 if (moves[i].GetData() == 0) continue;
-                if (!MoveGenerator.CheckLegal(board, moves[i])) continue;
+                //if (!MoveGenerator.CheckLegal(board, moves[i])) continue;
                 Console.WriteLine(i + ".");
                 moves[i].PrintMove();
             }
