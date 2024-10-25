@@ -15,27 +15,21 @@ namespace ChessEngine
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             Test.LoadTestPositions();
-            //board = new Board(Test.FenDataBase[15]);
+            //board = new Board(Test.FenDataBase[18]);
             board.PrintBoard();
             board.Eval = Evaluation.WeightedMaterial(board);
-            //(bool Check, bool DoubleCheck, ulong Blocks) = MoveGenerator.FindCheck(board, board.ColourToMove);
-            //(new Bitboard(Blocks)).PrintData();
-            // PrintMoves(board);
-            // board.PrintBoard();
-            // PrintMoves(board);
-            //Test.ShowEvaluationScores();
-            for (int i = 0; i < 7; i++) Console.WriteLine(Search.Perft(i,board));
-            // for (int i = 0; i < 10000000; i++)
-            // {
-            //     MoveGenerator.GenerateMoves(board, false);
-            // }
+            for (int i = 0; i < 6; i++) Console.WriteLine(Search.Perft(i,board));
 
             //after program has been loaded
 
-            while (1==2)
+            while (1==1)
             {
+                Move move = GetUserMove(board);
+                board.MakeMove(move);
+                board.PrintBoard();
+
                 Console.WriteLine("board: " + board.Eval + " actual: " + Evaluation.WeightedMaterial(board));
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 10, TTable);
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 12, TTable);
                 board.MakeMove(BestMove);
                 board.PrintBoard();
                 Console.WriteLine("computer eval: " + Eval);
@@ -44,10 +38,9 @@ namespace ChessEngine
                 Console.WriteLine(FormatMove(BestMove));
                 Console.WriteLine(((float)MoveGenerator.fullcheck/(float)(MoveGenerator.fullcheck + MoveGenerator.normal)*100) + "% of moves checked in depth");
                 Console.WriteLine("full: " + MoveGenerator.fullcheck + "normal: " + MoveGenerator.normal);
-                break;
-                Move move = GetUserMove(board);
-                board.MakeMove(move);
-                board.PrintBoard();
+                MoveGenerator.normal = 0;
+                MoveGenerator.fullcheck = 0;
+                //break;
 
                 // (BestMove, Eval, PV) = Search.IterativeDeepeningSearch(board, 10, TTable);
                 // board.MakeMove(BestMove);

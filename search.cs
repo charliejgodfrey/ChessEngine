@@ -123,7 +123,7 @@ namespace ChessEngine
                 float Score;
                 Move[] PV;
 
-                if (i == 0 || Depth < 3) //what it thinks the best move is 
+                if (i ==0 || Depth < 3) //what it thinks the best move is 
                 {
                     (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, Moves[i], -Beta, -Alpha); //search at full depth
                 } else {
@@ -203,8 +203,8 @@ namespace ChessEngine
                 }
             }
 
-            if (board.WhiteKing.GetData() == 0) return (board.ColourToMove == 0 ? -1000000 : 100000);
-            if (board.BlackKing.GetData() == 0) return (board.ColourToMove == 0 ? -1000000 : 100000);
+            if (board.Pieces[5] == 0) return (board.ColourToMove == 0 ? -1000000 : 100000);
+            if (board.Pieces[11] == 0) return (board.ColourToMove == 0 ? -1000000 : 100000);
             float Eval = (board.ColourToMove == 0 ? 1 : -1) * Evaluation.Evaluate(board);
             if (Eval >= Beta) 
             {

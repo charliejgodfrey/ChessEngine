@@ -13,18 +13,11 @@ namespace ChessEngine
         public static int fullcheck = 0;
         public static Move[] GenerateMoves(Board board, bool onlyCaptures = false)
         {
-            // int EnemyKingSquare = board.Pieces[board.ColourToMove == 0 ? 11 : 5].LSB();
-            // ulong KingDiagonals = GenerateBishopAttacks(board, EnemyKingSquare);
-            // ulong KingStraights = GenerateRookAttacks(board, EnemyKingSquare);
-            // ulong KingKnights = PreComputeData.KnightAttackBitboards[EnemyKingSquare].GetData()
             Move[] Moves = new Move[218];
             int MoveNumber = 0;
+            //Console.WriteLine("turn: " + board.ColourToMove);
             (bool Check, bool DoubleCheck, ulong Blocks) = FindCheck(board, board.ColourToMove);
-            // if (Check == true)
-            // {
-            //     board.PrintBoard();
-            //     (new Bitboard(Blocks)).PrintData();
-            // }
+            
             if (DoubleCheck)
             {
                 MoveNumber = GenerateKingMoves(board, Moves, MoveNumber, Blocks, onlyCaptures); //in double check the king has to move
@@ -38,8 +31,11 @@ namespace ChessEngine
                 MoveNumber = GenerateKingMoves(board, Moves, MoveNumber, Blocks, onlyCaptures); 
                 MoveNumber = GenerateKnightMoves(board, Moves, MoveNumber, Blocks, onlyCaptures);
             }
+            //Console.WriteLine("turn: " + board.ColourToMove);
+
             //if (!onlyCaptures) MoveNumber = CheckCastle(board, Moves, MoveNumber);
             Moves = FilterIllegalMoves(board, Moves, Check);
+            //Console.WriteLine("turn: " + board.ColourToMove);
             return Moves;
         }
 
@@ -48,51 +44,36 @@ namespace ChessEngine
             Move[] LegalMoves = new Move[218];
             int MoveCount = 0;
             bool IsInCheck = Check;
-            if (1==2&&IsInCheck)
+            (ulong Pins, ulong[] PinMaintains) = PotentialPins(board, board.ColourToMove);
+            for (int i = 0; i < 218; i++) //for each sudo legal move
             {
-                for (int i = 0; i < 218; i++)
+                if (Moves[i].GetData() == 0) break; //done all moves
+                if (Moves[i].GetPiece() == 5 || Moves[i].GetFlag() == 0b0101)
                 {
-                    if (Moves[i].GetData() == 0) break; //done all moves
-                    if (CheckLegal(board, Moves[i])) { //make special generator for getting out of check
+                    if (CheckLegal(board, Moves[i])) {
                         LegalMoves[MoveCount] = Moves[i];
                         MoveCount++;
-                    } else{
-                        //Moves[i].PrintMove();
-                    }
+                    } 
                 }
-
-            } else {
-                (ulong Pins, ulong[] PinMaintains) = PotentialPins(board, board.ColourToMove);
-                for (int i = 0; i < 218; i++) //for each sudo legal move
-                {
-                    if (Moves[i].GetData() == 0) break; //done all moves
-                    if (Moves[i].GetPiece() == 5)
+                else if (((Pins & (1UL << Moves[i].GetStart())) == 0)) { //doesn't need to be checked thoroughly
+                    //Moves[i].PrintMove();
+                    LegalMoves[MoveCount] = Moves[i];
+                    MoveCount++;
+                    normal++;
+                } else {
+                    normal++;
+                    // Console.WriteLine("1");
+                    for (int p = 0; p < 8; p++) 
                     {
-                        if (CheckLegal(board, Moves[i])) {
-                            LegalMoves[MoveCount] = Moves[i];
-                            MoveCount++;
-                        } 
-                    }
-                    else if (((Pins & (1UL << Moves[i].GetStart())) == 0)) { //doesn't need to be checked thoroughly
-                        //Moves[i].PrintMove();
-                        LegalMoves[MoveCount] = Moves[i];
-                        MoveCount++;
-                        normal++;
-                    } else {
-                        normal++;
-                       // Console.WriteLine("1");
-                        for (int p = 0; p < 8; p++) 
+                        if ((PinMaintains[p] & (1Ul << Moves[i].GetStart())) > 0)
                         {
-                            if ((PinMaintains[p] & (1Ul << Moves[i].GetStart())) > 0)
+                            //Console.WriteLine("2");
+                            if ((PinMaintains[p] & (1UL << Moves[i].GetTarget())) > 0)
                             {
-                                //Console.WriteLine("2");
-                                if ((PinMaintains[p] & (1UL << Moves[i].GetTarget())) > 0)
-                                {
-                                    LegalMoves[MoveCount] = Moves[i];
-                                    MoveCount++;
-                                }
-                                break;
+                                LegalMoves[MoveCount] = Moves[i];
+                                MoveCount++;
                             }
+                            break;
                         }
                     }
                 }
@@ -104,15 +85,15 @@ namespace ChessEngine
         {
             ulong Pins = 0UL;
             ulong[] StillPinnedSquares = [0Ul, 0Ul, 0Ul, 0Ul, 0UL, 0UL, 0UL, 0UL]; //places that pieces could move to which would maintain each pin (not put the king in check)
-            int KingSquare = board.Pieces[Player * 6 + 5].LSB();
+            int KingSquare = BitOperations.TrailingZeroCount(board.Pieces[Player * 6 + 5]);
             int Enemey = (Player == 0 ? 1 : 0);
             for (int d = 0; d < 4; d++) //rook and queen pins 
             {
-                ulong Pinner = PreComputeData.KingRays[KingSquare,d] & (board.Pieces[Enemey * 6 + 4].GetData() | board.Pieces[Enemey * 6 + 3].GetData());
+                ulong Pinner = PreComputeData.KingRays[KingSquare,d] & (board.Pieces[Enemey * 6 + 4] | board.Pieces[Enemey * 6 + 3]);
                 while (Pinner > 0)
                 {
                     int index = BitOperations.TrailingZeroCount(Pinner);
-                    ulong blockers = PreComputeData.KingRays[KingSquare,d] & PreComputeData.KingRays[index,d+(d%2 == 0?1:-1)] & board.OccupiedSquares.GetData(); 
+                    ulong blockers = PreComputeData.KingRays[KingSquare,d] & PreComputeData.KingRays[index,d+(d%2 == 0?1:-1)] & board.OccupiedSquares; 
                     if (BitOperations.PopCount(blockers) == 1) 
                     {
                         Pins |= blockers;
@@ -124,11 +105,11 @@ namespace ChessEngine
             }
             for (int d = 4; d < 8; d++) //bishop and queen pins 
             {
-                ulong Pinner = PreComputeData.KingRays[KingSquare,d] & (board.Pieces[Enemey * 6 + 4].GetData() | board.Pieces[Enemey * 6 + 2].GetData());
+                ulong Pinner = PreComputeData.KingRays[KingSquare,d] & (board.Pieces[Enemey * 6 + 4] | board.Pieces[Enemey * 6 + 2]);
                 while (Pinner > 0)
                 {
                     int index = BitOperations.TrailingZeroCount(Pinner);
-                    ulong blockers = PreComputeData.KingRays[KingSquare,d] & PreComputeData.KingRays[index,d+(d%2 == 0?1:-1)] & board.OccupiedSquares.GetData(); //will always be at least 2 intersected for the king and pinning piece
+                    ulong blockers = PreComputeData.KingRays[KingSquare,d] & PreComputeData.KingRays[index,d+(d%2 == 0?1:-1)] & board.OccupiedSquares; //will always be at least 2 intersected for the king and pinning piece
                     if (BitOperations.PopCount(blockers) == 1) {
                         Pins |= blockers;
                         int BlockerIndex = BitOperations.TrailingZeroCount(blockers);
@@ -137,7 +118,7 @@ namespace ChessEngine
                     Pinner &= ~(1Ul << index);
                 }
             }
-            Pins &= (Player == 0 ? board.WhitePieces.GetData() : board.BlackPieces.GetData());//don't care about the enemeys pieces
+            Pins &= (Player == 0 ? board.WhitePieces : board.BlackPieces);//don't care about the enemeys pieces
             //Bitboard PinBitboard = new Bitboard(Pins);
             Pins &= ~(1UL << KingSquare); //king square is never pinned
             // for (int i = 0; i < 8; i++)
@@ -150,38 +131,37 @@ namespace ChessEngine
         public static bool InCheck(Board board, int Player)
         {
             int ColourAdd = (Player == 0 ? 6 : 0);
-            int KingSquare = (Player == 0 ? board.WhiteKing.LSB() : board.BlackKing.LSB());
-            if (KingSquare < 0 || KingSquare > 63){ Console.WriteLine("King Square l31: " + KingSquare);
-            board.PrintBoard();board.WhiteKing.PrintData();}
+            int KingSquare = BitOperations.TrailingZeroCount(board.Pieces[5+Player*6]);
+
             ulong KnightAttacks = PreComputeData.KnightAttackBitboards[KingSquare].GetData(); // where a knight could attack the king from
-            if (((KnightAttacks) & board.Pieces[1 + ColourAdd].GetData()) != 0)
+            if ((KnightAttacks & board.Pieces[1 + ColourAdd]) != 0)
             {
                 return true;
             }
 
             ulong BishopAttacks = GenerateBishopAttacks(board, KingSquare);
-            if ((BishopAttacks & board.Pieces[2 + ColourAdd].GetData()) != 0)
+            if ((BishopAttacks & board.Pieces[2 + ColourAdd]) != 0)
             { 
                 return true;
             }
 
             ulong RookAttacks = GenerateRookAttacks(board, KingSquare);
-            if ((RookAttacks & board.Pieces[3 + ColourAdd].GetData()) != 0) 
+            if ((RookAttacks & board.Pieces[3 + ColourAdd]) != 0) 
             {
                 return true;
             }
 
-            if (((RookAttacks | BishopAttacks) & board.Pieces[4 + ColourAdd].GetData()) != 0) 
+            if (((RookAttacks | BishopAttacks) & board.Pieces[4 + ColourAdd]) != 0) 
             { 
                 return true;
             }
 
-            if (((board.Pieces[ColourAdd].IsBitSet(KingSquare + 1 + (Player == 1 ? -8 : 8))) && KingSquare % 8 != 7) || ((board.Pieces[ColourAdd].IsBitSet(KingSquare - 1 + (Player == 1 ? -8 : 8))) && KingSquare % 8 != 0)) // checking if either of the attackable squares of the king from pawns are occupied, don't need to worry about overflow because no pawns on the 1st and 8th rank
+            if ((((board.Pieces[ColourAdd] & (1UL << (KingSquare + 1 + (Player == 1 ? -8 : 8))))!=0) && KingSquare % 8 != 7) || (((board.Pieces[ColourAdd] & (1UL <<(KingSquare - 1 + (Player == 1 ? -8 : 8))))!=0) && KingSquare % 8 != 0)) // checking if either of the attackable squares of the king from pawns are occupied, don't need to worry about overflow because no pawns on the 1st and 8th rank
             {
                 return true;
             }
 
-            if ((PreComputeData.KingAttackBitboards[KingSquare].GetData() & board.Pieces[5+ ColourAdd].GetData()) != 0)
+            if ((PreComputeData.KingAttackBitboards[KingSquare].GetData() & board.Pieces[5+ ColourAdd]) != 0)
             {
                 return true;
             }
@@ -191,31 +171,33 @@ namespace ChessEngine
         public static (bool, bool, ulong) FindCheck(Board board, int Player)
         {
             int ColourAdd = (Player == 0 ? 6 : 0);
-            int KingSquare = (Player == 0 ? board.WhiteKing.LSB() : board.BlackKing.LSB());
+            int KingSquare = BitOperations.TrailingZeroCount(board.Pieces[5+Player*6]);
             bool DoubleCheck = false;
             bool Check = false;
             ulong Checkers = 0UL;
-            if (KingSquare < 0 || KingSquare > 63){ Console.WriteLine("King Square l31: " + KingSquare);
-            board.PrintBoard();board.WhiteKing.PrintData();}
+
             ulong KnightAttacks = PreComputeData.KnightAttackBitboards[KingSquare].GetData(); // where a knight could attack the king from
-            if (((KnightAttacks) & board.Pieces[1 + ColourAdd].GetData()) != 0)
+            ulong Overlap = KnightAttacks & board.Pieces[1 + ColourAdd];
+            if (Overlap != 0)
             {
-                Checkers = ((KnightAttacks) & board.Pieces[1 + ColourAdd].GetData());
+                Checkers |= (1UL << BitOperations.TrailingZeroCount(Overlap));
+                //return (true, false, Checkers);
+                //if (Check) return (true, true, Checkers);
                 Check = true;
             }
 
             ulong BishopAttacks = GenerateBishopAttacks(board, KingSquare);
-            ulong Overlap = (BishopAttacks & (board.Pieces[2 + ColourAdd].GetData() | board.Pieces[4+ColourAdd].GetData()));
+            Overlap = (BishopAttacks & (board.Pieces[2 + ColourAdd] | board.Pieces[4+ColourAdd]));
             if (Overlap != 0)
             {
                 int Bishop = BitOperations.TrailingZeroCount(Overlap);
-                Checkers |= (BishopAttacks & GenerateBishopAttacks(board, Bishop)) | (1UL << Bishop);
+                Checkers |= ((BishopAttacks & GenerateBishopAttacks(board, Bishop)) | (1UL << Bishop));
                 if (Check) return (true, true, (Checkers));
                 Check = true;
             }
 
             ulong RookAttacks = GenerateRookAttacks(board, KingSquare);
-            Overlap = (RookAttacks & (board.Pieces[3 + ColourAdd].GetData() | board.Pieces[4 + ColourAdd].GetData()));
+            Overlap = (RookAttacks & (board.Pieces[3 + ColourAdd] | board.Pieces[4 + ColourAdd]));
             if (Overlap != 0) 
             {
                 int Rook = BitOperations.TrailingZeroCount(Overlap); //could also be a queen
@@ -224,19 +206,18 @@ namespace ChessEngine
                 Check = true;
             }
 
-            if (((board.Pieces[ColourAdd].IsBitSet(KingSquare + 1 + (Player == 1 ? -8 : 8))) && KingSquare % 8 != 7)) 
+            if ((((board.Pieces[ColourAdd] & (1UL << (KingSquare + 1 + (Player == 1 ? -8 : 8)))) != 0) && (KingSquare % 8 != 7))) 
             {
                 Checkers |= 1UL << (KingSquare + 1 + (Player == 1 ? -8 : 8));
-                return (true, false, Checkers); //can't be in double check from a pawn
+                return (true, Check, Checkers); //can't be in double check from a pawn
             }
-            if (((board.Pieces[ColourAdd].IsBitSet(KingSquare - 1 + (Player == 1 ? -8 : 8))) && KingSquare % 8 != 7)) 
+            if ((((board.Pieces[ColourAdd] & (1UL << (KingSquare - 1 + (Player == 1 ? -8 : 8)))) != 0) && (KingSquare % 8 != 0))) 
             {
-                Checkers |= 1UL << (KingSquare + 1 + (Player == 1 ? -8 : 8));
-                return (true, false, Checkers); //can't be in double check from a pawn
+                Checkers |= 1UL << (KingSquare - 1 + (Player == 1 ? -8 : 8));
+                return (true, Check, Checkers); //can't be in double check from a pawn
             }
-
             //shouldn't be in check from the king so this doesn't need to be identified here
-            return (Check, DoubleCheck, (Checkers == 0 ? ~0UL : Checkers));
+            return (Check, DoubleCheck, (Checkers != 0 ? Checkers : ulong.MaxValue));
         }
 
         public static bool CheckLegal(Board board, Move Move) //will soon only be used for complex moves
@@ -248,74 +229,35 @@ namespace ChessEngine
             return !Legal;
         }
 
-        public static int CheckCastle(Board board, Move[] moves, int MoveNumber) // currently allows castling out of, and through check
-        {
-            if (board.ColourToMove == 0 && ((board.OccupiedSquares.GetData() & 0x60) == 0) && board.WhiteShortCastle && !MoveGenerator.UnderAttack(board, 5) && !MoveGenerator.UnderAttack(board, 6))
-            {
-                moves[MoveNumber] = new Move(0,0,0b0010,0,0); //white short castle
-                MoveNumber++;
-            }
-            if (board.ColourToMove == 0 && ((board.OccupiedSquares.GetData() & 0xE) == 0) && board.WhiteLongCastle && !MoveGenerator.UnderAttack(board, 2) && !MoveGenerator.UnderAttack(board,3))
-            {
-                moves[MoveNumber] = new Move(0,0,0b0011,0,0); //white long castle
-                MoveNumber++;
-            }
-            if (board.ColourToMove == 1 && ((board.OccupiedSquares.GetData() & 0x6000000000000000) == 0) && board.BlackShortCastle && !MoveGenerator.UnderAttack(board, 61) && !MoveGenerator.UnderAttack(board, 62))
-            {
-                moves[MoveNumber] = new Move(0,0,0b0010,0,0); //black short castle
-                //Console.WriteLine("black short castle");
-                MoveNumber++;
-            }
-            if (board.ColourToMove == 1 && ((board.OccupiedSquares.GetData() & 0x0E00000000000000) == 0) && board.BlackLongCastle && !MoveGenerator.UnderAttack(board, 58) && !MoveGenerator.UnderAttack(board,59))
-            {
-                moves[MoveNumber] = new Move(0,0,0b0011,0,0); //black long castle
-                MoveNumber++;
-                //Console.WriteLine("black long castle");
-            }
-            return MoveNumber;
-        }
-
-        public static bool UnderAttack(Board board, int square)
-        {
-            int ColourAdd = (board.ColourToMove == 0 ? 6 : 0);
-            ulong KnightAttacks = PreComputeData.KnightAttackBitboards[square].GetData(); // where a knight could attack the king from
-            if (((KnightAttacks) & board.Pieces[1 + ColourAdd].GetData()) != 0)
-            {
-                return true;
-            }
-
-            ulong BishopAttacks = GenerateBishopAttacks(board, square);
-            if ((BishopAttacks & board.Pieces[2 + ColourAdd].GetData()) != 0)
-            {
-                return true;
-            }
-
-            ulong RookAttacks = GenerateRookAttacks(board, square);
-            if ((RookAttacks & board.Pieces[3 + ColourAdd].GetData()) != 0) 
-            { 
-                return true;
-            }
-
-            if (((RookAttacks | BishopAttacks) & board.Pieces[4 + ColourAdd].GetData()) != 0) 
-            {
-                return true;
-            }
-
-            if (((board.Pieces[ColourAdd].IsBitSet(square + 1 + (board.ColourToMove == 0 ? 8 : -8))) && square % 8 != 7) || ((board.Pieces[ColourAdd].IsBitSet(square - 1 + (board.ColourToMove == 0 ? 8 : -8))) && square % 8 != 0)) // checking if either of the attackable squares of the king from pawns are occupied
-            {
-                return true;
-            }
-
-            if ((PreComputeData.KingAttackBitboards[square].GetData() & board.Pieces[5+ ColourAdd].GetData()) != 0)
-            { 
-                return true;
-            }
-            return false;
-        }
-
+        // public static int CheckCastle(Board board, Move[] moves, int MoveNumber) // currently allows castling out of, and through check
+        // {
+        //     if (board.ColourToMove == 0 && ((board.OccupiedSquares & 0x60) == 0) && board.WhiteShortCastle && !MoveGenerator.UnderAttack(board, 5) && !MoveGenerator.UnderAttack(board, 6))
+        //     {
+        //         moves[MoveNumber] = new Move(0,0,0b0010,0,0); //white short castle
+        //         MoveNumber++;
+        //     }
+        //     if (board.ColourToMove == 0 && ((board.OccupiedSquares & 0xE) == 0) && board.WhiteLongCastle && !MoveGenerator.UnderAttack(board, 2) && !MoveGenerator.UnderAttack(board,3))
+        //     {
+        //         moves[MoveNumber] = new Move(0,0,0b0011,0,0); //white long castle
+        //         MoveNumber++;
+        //     }
+        //     if (board.ColourToMove == 1 && ((board.OccupiedSquares.Data() & 0x6000000000000000) == 0) && board.BlackShortCastle && !MoveGenerator.UnderAttack(board, 61) && !MoveGenerator.UnderAttack(board, 62))
+        //     {
+        //         moves[MoveNumber] = new Move(0,0,0b0010,0,0); //black short castle
+        //         //Console.WriteLine("black short castle");
+        //         MoveNumber++;
+        //     }
+        //     if (board.ColourToMove == 1 && ((board.OccupiedSquares.GetData() & 0x0E00000000000000) == 0) && board.BlackLongCastle && !MoveGenerator.UnderAttack(board, 58) && !MoveGenerator.UnderAttack(board,59))
+        //     {
+        //         moves[MoveNumber] = new Move(0,0,0b0011,0,0); //black long castle
+        //         MoveNumber++;
+        //         //Console.WriteLine("black long castle");
+        //     }
+        //     return MoveNumber;
+        // }
         public static int GenerateQueenMoves(Board board, Move[] Moves, int MoveNumber, ulong Blocks, bool onlyCaptures = false)
         {
-            ulong QueenLocations = (board.ColourToMove == 0 ? board.WhiteQueens.GetData() : board.BlackQueens.GetData());
+            ulong QueenLocations = board.Pieces[4 + board.ColourToMove*6];
             while (QueenLocations > 0)
             {
                 int startSquare = BitOperations.TrailingZeroCount(QueenLocations);
@@ -323,9 +265,9 @@ namespace ChessEngine
                 QueenAttacks |=GenerateBishopAttacks(board, startSquare); //union of bishop moves and rook moves
                 if (onlyCaptures)
                 {
-                    QueenAttacks &= (board.ColourToMove == 1 ? board.WhitePieces.GetData() : board.BlackPieces.GetData()); //only counts the intersection with enemy pieces
+                    QueenAttacks &= (board.ColourToMove == 1 ? board.WhitePieces : board.BlackPieces); //only counts the intersection with enemy pieces
                 } else {
-                    QueenAttacks &= ~(board.ColourToMove == 0? board.WhitePieces.GetData() : board.BlackPieces.GetData());
+                    QueenAttacks &= ~(board.ColourToMove == 0? board.WhitePieces : board.BlackPieces);
                 }
                 QueenAttacks &= Blocks;
                 QueenLocations &= ~(1UL << startSquare);
@@ -333,7 +275,7 @@ namespace ChessEngine
                 {
                     int target = BitOperations.TrailingZeroCount(QueenAttacks);
                     int capture = board.GetPiece(target, (board.ColourToMove == 0 ?  1 : 0));
-                    int flag = (board.ColourToMove == 0 && board.BlackPieces.IsBitSet(target)) || (board.ColourToMove == 1 && (capture != 0b111)) ? 0b0100 : 0b0000; //pretty much just checks if it's a capture or not
+                    int flag = (board.ColourToMove == 0 && ((board.BlackPieces & (1UL <<(target)))!=0)) || (board.ColourToMove == 1 && (capture != 0b111)) ? 0b0100 : 0b0000; //pretty much just checks if it's a capture or not
                     Moves[MoveNumber] = new Move(startSquare, target, flag, 0b100, capture, 0);
                     MoveNumber++;
                     QueenAttacks &= ~(1UL << target);
@@ -344,16 +286,16 @@ namespace ChessEngine
 
         public static int GenerateRookMoves(Board board, Move[] Moves, int MoveNumber, ulong Blocks, bool onlyCaptures = false)
         {
-            ulong RookLocations = (board.ColourToMove == 0 ? board.WhiteRooks.GetData() : board.BlackRooks.GetData());
+            ulong RookLocations = board.Pieces[3 + board.ColourToMove*6];
             while (RookLocations > 0) //cycles through each rook on the board
             {
                 int startSquare = BitOperations.TrailingZeroCount(RookLocations);
                 ulong RookAttacks = GenerateRookAttacks(board, startSquare);
                 if (onlyCaptures)
                 {
-                    RookAttacks &= (board.ColourToMove == 1 ? board.WhitePieces.GetData() : board.BlackPieces.GetData()); //only counts the intersection with enemy pieces
+                    RookAttacks &= (board.ColourToMove == 1 ? board.WhitePieces : board.BlackPieces); //only counts the intersection with enemy pieces
                 } else {
-                    RookAttacks &= ~(board.ColourToMove == 0? board.WhitePieces.GetData() : board.BlackPieces.GetData());
+                    RookAttacks &= ~(board.ColourToMove == 0? board.WhitePieces : board.BlackPieces);
                 }
                 RookAttacks &= Blocks;
                 RookLocations &= ~(1UL << startSquare);
@@ -361,7 +303,7 @@ namespace ChessEngine
                 {
                     int target = BitOperations.TrailingZeroCount(RookAttacks);
                     int capture = board.GetPiece(target,(board.ColourToMove == 0 ?  1 : 0));
-                    int flag = (board.ColourToMove == 0 && board.BlackPieces.IsBitSet(target)) || (board.ColourToMove == 1 && capture != 0b111) ? 0b0100 : 0b0000; //pretty much just checks if it's a capture or not
+                    int flag = (board.ColourToMove == 0 && ((board.BlackPieces & (1UL << (target)))!=0)) || (board.ColourToMove == 1 && capture != 0b111) ? 0b0100 : 0b0000; //pretty much just checks if it's a capture or not
                     Moves[MoveNumber] = new Move(startSquare, target, flag, 0b011, capture);
                     MoveNumber++;
                     RookAttacks &= ~(1UL << target);
@@ -372,16 +314,16 @@ namespace ChessEngine
 
         public static int GenerateBishopMoves(Board board, Move[] Moves, int MoveNumber, ulong Blocks, bool onlyCaptures = false)
         {
-            ulong BishopLocations = (board.ColourToMove == 0 ? board.WhiteBishops.GetData() : board.BlackBishops.GetData());
+            ulong BishopLocations = board.Pieces[2 + board.ColourToMove*6];
             while (BishopLocations > 0) //cycles through each bishop on the board
             {
                 int startSquare = BitOperations.TrailingZeroCount(BishopLocations);
                 ulong BishopAttacks = GenerateBishopAttacks(board, startSquare);
                 if (onlyCaptures)
                 {
-                    BishopAttacks &= (board.ColourToMove == 1 ? board.WhitePieces.GetData() : board.BlackPieces.GetData()); //only counts the intersection with enemy pieces
+                    BishopAttacks &= (board.ColourToMove == 1 ? board.WhitePieces : board.BlackPieces); //only counts the intersection with enemy pieces
                 } else {
-                    BishopAttacks &= ~(board.ColourToMove == 0 ? board.WhitePieces.GetData() : board.BlackPieces.GetData());
+                    BishopAttacks &= ~(board.ColourToMove == 0 ? board.WhitePieces : board.BlackPieces);
                 }
                 BishopAttacks &= Blocks;
                 BishopLocations &= ~(1UL << startSquare);
@@ -389,7 +331,7 @@ namespace ChessEngine
                 {
                     int target = BitOperations.TrailingZeroCount(BishopAttacks);
                     int capture = board.GetPiece(target, (board.ColourToMove == 0 ?  1 : 0));
-                    int flag = (board.ColourToMove == 0 && board.BlackPieces.IsBitSet(target)) || (board.ColourToMove == 1 && (capture != 0b111)) ? 0b0100 : 0b0000; //pretty much just checks if it's a capture or not
+                    int flag = (board.ColourToMove == 0 && (((board.BlackPieces & (1UL << (target)))!=0))) || (board.ColourToMove == 1 && (capture != 0b111)) ? 0b0100 : 0b0000; //pretty much just checks if it's a capture or not
                     Moves[MoveNumber] = new Move(startSquare, target, flag, 0b010, capture);
                     MoveNumber++;
                     BishopAttacks &= ~(1UL << target);
@@ -400,33 +342,33 @@ namespace ChessEngine
 
         public static ulong GenerateRookAttacks(Board board, int square) //this is all one line because it saves time defining variables
         {
-            return PreComputeData.RookAttacks[square, ((board.OccupiedSquares.GetData() & PreComputeData.RookMasks[square]) * PreComputeData.RookMagics[square]) >> (64 - Magic.RookBits[square])].GetData();
+            return PreComputeData.RookAttacks[square, ((board.OccupiedSquares & PreComputeData.RookMasks[square]) * PreComputeData.RookMagics[square]) >> (64 - Magic.RookBits[square])].GetData();
         }
 
         public static ulong GenerateBishopAttacks(Board board, int square) //one line to save time
         {
-            return PreComputeData.BishopAttacks[square, ((board.OccupiedSquares.GetData() & PreComputeData.BishopMasks[square]) * PreComputeData.BishopMagics[square]) >> (64 - Magic.BishopBits[square])].GetData();
+            return PreComputeData.BishopAttacks[square, ((board.OccupiedSquares & PreComputeData.BishopMasks[square]) * PreComputeData.BishopMagics[square]) >> (64 - Magic.BishopBits[square])].GetData();
         }
 
         public static int GenerateKingMoves(Board board, Move[] Moves, int MoveNumber, ulong Blocks, bool onlyCaptures = false)
         {
-            int KingSquare = (board.ColourToMove == 0) ? board.WhiteKing.LSB() : board.BlackKing.LSB(); //gets the location of the king
+            int KingSquare = BitOperations.TrailingZeroCount(board.Pieces[5+board.ColourToMove*6]); //gets the location of the king
             if (KingSquare > 63 || KingSquare < 0){ Console.WriteLine("king index is out of bounds: " + KingSquare);
             board.PrintBoard();}
             ulong Attacks = (PreComputeData.KingAttackBitboards[KingSquare].GetData());
             if (onlyCaptures)
             {
-                Attacks &= (board.ColourToMove == 1 ? board.WhitePieces.GetData() : board.BlackPieces.GetData()); //only counts the intersection with enemy pieces
+                Attacks &= (board.ColourToMove == 1 ? board.WhitePieces : board.BlackPieces); //only counts the intersection with enemy pieces
             } else {
-                Attacks &= ~(board.ColourToMove == 0? board.WhitePieces.GetData() : board.BlackPieces.GetData());
+                Attacks &= ~(board.ColourToMove == 0? board.WhitePieces : board.BlackPieces);
             }
             //if (Blocks != ulong.MaxValue) Attacks &=  ~Blocks; //cannot block check with your own king
             while (Attacks > 0)
             {
                 int target = BitOperations.TrailingZeroCount(Attacks);
                 int capture = board.GetPiece(target, (board.ColourToMove == 0 ?  1 : 0));
-                int flag = (board.ColourToMove == 0 && board.BlackPieces.IsBitSet(target)) || (board.ColourToMove == 1 && (target == 0b111)) ? 0b0100 : 0b0000;
-                if (!(Blocks != ulong.MaxValue && (Blocks & (1UL << target)) == 1 && capture == 7)) 
+                int flag = (board.ColourToMove == 0 && ((board.BlackPieces & (1UL << (target)))!=0)) || (board.ColourToMove == 1 && (target == 0b111)) ? 0b0100 : 0b0000;
+                if (1==1 || !(Blocks != ulong.MaxValue && ((Blocks & (1UL << target)) != 0) && capture == 7)) 
                 {
                     Moves[MoveNumber] = new Move(KingSquare, target, flag, 0b101, capture);
                     MoveNumber++;
@@ -438,23 +380,23 @@ namespace ChessEngine
 
         public static int GenerateKnightMoves(Board board, Move[] Moves, int MoveNumber, ulong Blocks, bool onlyCaptures = false)
         {
-            ulong KnightLocations = board.ColourToMove == 0 ? board.WhiteKnights.GetData() : board.BlackKnights.GetData(); //gets location of all the knights of a colour
+            ulong KnightLocations = board.Pieces[1 + board.ColourToMove*6]; //gets location of all the knights of a colour
             while (KnightLocations > 0) //for all of the knights
             {
                 int startSquare = BitOperations.TrailingZeroCount(KnightLocations);
                 ulong Attacks = PreComputeData.KnightAttackBitboards[startSquare].GetData();
                 if (onlyCaptures)
                 {
-                    Attacks &= (board.ColourToMove == 1 ? board.WhitePieces.GetData() : board.BlackPieces.GetData()); //only counts the intersection with enemy pieces
+                    Attacks &= (board.ColourToMove == 1 ? board.WhitePieces : board.BlackPieces); //only counts the intersection with enemy pieces
                 } else {
-                    Attacks &= ~(board.ColourToMove == 0? board.WhitePieces.GetData() : board.BlackPieces.GetData());
+                    Attacks &= ~(board.ColourToMove == 0? board.WhitePieces : board.BlackPieces);
                 }
                 Attacks &= Blocks; //in case you have to block check
                 while (Attacks > 0)
                 {
                     int target = BitOperations.TrailingZeroCount(Attacks);
                     int capture = board.GetPiece(target, (board.ColourToMove == 0 ?  1 : 0));
-                    int flag = (board.ColourToMove == 0 && board.BlackPieces.IsBitSet(target)) || (board.ColourToMove == 1 && (capture == 0b111)) ? 0b0100 : 0b0000;
+                    int flag = (board.ColourToMove == 0 && ((board.BlackPieces & (1UL << (target)))!=0)) || (board.ColourToMove == 1 && (capture == 0b111)) ? 0b0100 : 0b0000;
                     Moves[MoveNumber] = new Move(startSquare, target, flag, 0b001, capture);
                     MoveNumber++;
                     Attacks &= ~(1UL << target);
@@ -468,20 +410,20 @@ namespace ChessEngine
         {
             if (!onlyCaptures) //to include non capturing moves
             {
-                ulong SinglePushPawns = (board.ColourToMove == 0) ? (~board.OccupiedSquares.GetData() >> 8) & board.WhitePawns.GetData() : (~board.OccupiedSquares.GetData() << 8) & board.BlackPawns.GetData();
-                ulong DoublePushPawns = board.ColourToMove == 0 ? (~board.OccupiedSquares.GetData() >> 16 & board.WhitePawns.GetData() & SinglePushPawns & 0xff00) : (~board.OccupiedSquares.GetData() << 16 & board.BlackPawns.GetData() & SinglePushPawns & 0x00ff000000000000);
+                ulong SinglePushPawns = (board.ColourToMove == 0) ? (~board.OccupiedSquares >> 8) & board.Pieces[0] : (~board.OccupiedSquares << 8) & board.Pieces[6];
+                ulong DoublePushPawns = board.ColourToMove == 0 ? (~board.OccupiedSquares >> 16 & board.Pieces[0] & SinglePushPawns & 0xff00) : (~board.OccupiedSquares << 16 & board.Pieces[6] & SinglePushPawns & 0x00ff000000000000);
                 while (SinglePushPawns > 0) //while the bitboard isn't empty
                 {
                     int startSquare = BitOperations.TrailingZeroCount(SinglePushPawns);
-                    if ((startSquare + 8 < 56 && board.ColourToMove == 0) || (startSquare - 8 > 7 && board.ColourToMove == 1)) //checks it isn't a promotion pawn move
+                    if ((Blocks & (1UL << (startSquare + (board.ColourToMove == 0 ? 8 : -8)))) != 0)
                     {
-                        if ((Blocks & (1UL << (startSquare + (board.ColourToMove == 0 ? 8 : -8)))) != 0)
+                        if ((startSquare + 8 < 56 && board.ColourToMove == 0) || (startSquare - 8 > 7 && board.ColourToMove == 1)) //checks it isn't a promotion pawn move
                         {
                             Moves[MoveNumber] = (new Move(startSquare, startSquare + (board.ColourToMove == 0 ? 8 : -8), 0, 0b000, 0b111));
                             MoveNumber++;
                         }
+                        else {AddPromotions(startSquare, startSquare + (board.ColourToMove == 0 ? 8 : -8), Moves, MoveNumber, 0b111);MoveNumber+=4;} //adds all the promo moves
                     }
-                    else {AddPromotions(startSquare, startSquare + (board.ColourToMove == 0 ? 8 : -8), Moves, MoveNumber, 0b111);MoveNumber+=4;} //adds all the promo moves
                     SinglePushPawns &= ~(1UL << startSquare); //need to change this to use the bitboard class, will make it all easer TODO
                 }
                 DoublePushPawns &= (board.ColourToMove == 0 ? Blocks >> 16 : Blocks << 16);
@@ -501,28 +443,25 @@ namespace ChessEngine
             ulong WestCapture;
             if (board.ColourToMove == 0) //turn is white
             {
-                EastCapture = (board.WhitePawns.GetData()) & ((board.BlackPieces.GetData() | 1UL<<board.EnPassantSquare) >>9) & 0x7F7F7F7F7F7F7F7F; //this essentially checks there is a piece that can be captured and accounts for overflow stuff
-                WestCapture = (board.WhitePawns.GetData()) & ((board.BlackPieces.GetData() | 1UL<<board.EnPassantSquare) >>7) & 0xFEFEFEFEFEFEFEFE; //does the same thing for the other direction
+                EastCapture = (board.Pieces[0]) & ((board.BlackPieces | 1UL<<board.EnPassantSquare) >>9) & 0x7F7F7F7F7F7F7F7F; //this essentially checks there is a piece that can be captured and accounts for overflow stuff
+                WestCapture = (board.Pieces[0]) & ((board.BlackPieces | 1UL<<board.EnPassantSquare) >>7) & 0xFEFEFEFEFEFEFEFE; //does the same thing for the other direction
             } else { //blacks turn
-                WestCapture = (board.BlackPawns.GetData()) & ((board.WhitePieces.GetData() | 1UL<<board.EnPassantSquare) <<9) & 0xFEFEFEFEFEFEFEFE; //this essentially checks there is a piece that can be captured and accounts for overflow stuff
-                EastCapture = (board.BlackPawns.GetData()) & ((board.WhitePieces.GetData() | 1UL<<board.EnPassantSquare) <<7) & 0x7F7F7F7F7F7F7F7F; //does the same thing for the other direction
+                WestCapture = (board.Pieces[6]) & ((board.WhitePieces | 1UL<<board.EnPassantSquare) <<9) & 0xFEFEFEFEFEFEFEFE; //this essentially checks there is a piece that can be captured and accounts for overflow stuff
+                EastCapture = (board.Pieces[6]) & ((board.WhitePieces | 1UL<<board.EnPassantSquare) <<7) & 0x7F7F7F7F7F7F7F7F; //does the same thing for the other direction
             }
 
             while (EastCapture > 0) //for all the capturing pawns to the right
             {
                 int startSquare = BitOperations.TrailingZeroCount(EastCapture);
                 int target = startSquare + 1 + (board.ColourToMove == 0 ? 8 : -8);
-                int capture = board.GetPiece(target, (board.ColourToMove == 0 ?  1 : 0));
-                if ((board.ColourToMove == 0 ? startSquare < 48 : startSquare > 15)) //isn't a promotion
+                if ((Blocks & (1UL << target)) != 0)
                 {
-                    if ((Blocks & (1UL << target)) != 0)
+                    int capture = board.GetPiece(target, (board.ColourToMove == 0 ?  1 : 0));
+                    if ((board.ColourToMove == 0 ? startSquare < 48 : startSquare > 15)) //isn't a promotion
                     {
                         Moves[MoveNumber] = new Move(startSquare, target, (target == board.EnPassantSquare ? 0b0101 : 0b0100), 0b000, capture);
                         MoveNumber++;
-                    }
-                } else {
-                    if ((Blocks & (1UL << target)) != 0)
-                    {
+                    } else {
                         AddPromotions(startSquare, target, Moves, MoveNumber, capture);
                         MoveNumber += 4;
                     }
@@ -533,17 +472,14 @@ namespace ChessEngine
             {
                 int startSquare = BitOperations.TrailingZeroCount(WestCapture);
                 int target = startSquare - 1 + (board.ColourToMove == 0 ? 8 : -8);
-                int capture = board.GetPiece(target, (board.ColourToMove == 0 ?  1 : 0));
-                if ((board.ColourToMove == 0 ? startSquare < 48 : startSquare >= 16)) //isn't a promotion
+                if ((Blocks & (1UL << target)) != 0)
                 {
-                    if ((Blocks & (1UL << target)) != 0)
+                    int capture = board.GetPiece(target, (board.ColourToMove == 0 ?  1 : 0));
+                    if ((board.ColourToMove == 0 ? startSquare < 48 : startSquare >= 16)) //isn't a promotion
                     {
                         Moves[MoveNumber] = new Move(startSquare, target, (target == board.EnPassantSquare ? 0b0101 : 0b0100), 0b000, capture);
                         MoveNumber++;   
-                    }
-                } else {
-                    if ((Blocks & (1UL << target)) != 0)
-                    {
+                    } else {
                         AddPromotions(startSquare, target, Moves, MoveNumber, capture);
                         MoveNumber += 4;
                     }

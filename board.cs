@@ -18,7 +18,7 @@ namespace ChessEngine
         public bool WhiteLongCastle = false;
         public bool BlackShortCastle = false;
         public bool BlackLongCastle = false;
-        public int[] PieceCount = new int[10];
+        public int[] PieceCount = new int[12];
         public float Eval = 0;
         public ZobristHasher Hasher = new ZobristHasher();
         public ulong Zobrist;
@@ -28,34 +28,21 @@ namespace ChessEngine
 
 
         //bitboards
-        public Bitboard WhitePawns = new Bitboard();
-        public Bitboard WhiteKnights = new Bitboard();
-        public Bitboard WhiteBishops = new Bitboard();
-        public Bitboard WhiteRooks = new Bitboard();
-        public Bitboard WhiteQueens = new Bitboard();
-        public Bitboard WhiteKing = new Bitboard();
 
-        public Bitboard BlackPawns = new Bitboard();
-        public Bitboard BlackKnights = new Bitboard();
-        public Bitboard BlackBishops = new Bitboard();
-        public Bitboard BlackRooks = new Bitboard();
-        public Bitboard BlackQueens = new Bitboard();
-        public Bitboard BlackKing = new Bitboard();
-
-        public Bitboard BlackPieces = new Bitboard();
-        public Bitboard WhitePieces = new Bitboard();
-        public Bitboard OccupiedSquares = new Bitboard();
-        public Bitboard[] Pieces = new Bitboard[12];
+        public ulong BlackPieces = 0UL;
+        public ulong WhitePieces = 0UL;
+        public ulong OccupiedSquares = 0UL;
+        public ulong[] Pieces = new ulong[12];
 
         public Board(string Fen = DefaultFEN, bool isCopy = false) 
         {
             if (!isCopy) 
             {
             this.UploadFEN(Fen);
-            BlackPieces = new Bitboard(BlackPawns.GetData() | BlackKnights.GetData() | BlackBishops.GetData() | BlackRooks.GetData() | BlackQueens.GetData() | BlackKing.GetData());
-            WhitePieces = new Bitboard(WhitePawns.GetData() | WhiteKnights.GetData() | WhiteBishops.GetData() | WhiteRooks.GetData() | WhiteQueens.GetData() | WhiteKing.GetData());
-            OccupiedSquares = new Bitboard(BlackPieces.GetData() | WhitePieces.GetData());
-            Pieces = [WhitePawns, WhiteKnights, WhiteBishops, WhiteRooks, WhiteQueens, WhiteKing, BlackPawns, BlackKnights, BlackBishops, BlackRooks, BlackQueens, BlackKing];
+            BlackPieces = Pieces[6] | Pieces[7] | Pieces[8] | Pieces[9] | Pieces[10] | Pieces[11];
+            WhitePieces = Pieces[0] | Pieces[1] | Pieces[2] | Pieces[3] | Pieces[4]| Pieces[5];
+            OccupiedSquares = BlackPieces | WhitePieces;
+            //Pieces = [WhitePawns, WhiteKnights, WhiteBishops, WhiteRooks, WhiteQueens, WhiteKing, BlackPawns, BlackKnights, BlackBishops, BlackRooks, BlackQueens, BlackKing];
             Zobrist = Hasher.Hash(this);
             Eval = Evaluation.WeightedMaterial(this);
             }
@@ -66,22 +53,22 @@ namespace ChessEngine
             ulong mask = (1UL << square);
             if (Colour == 0) //white piece on the location
             {
-                if ((WhitePawns.GetData() & mask) != 0) return 0;
-                if ((WhiteKnights.GetData() & mask) != 0) return 1;
-                if ((WhiteBishops.GetData() & mask) != 0) return 2;
-                if ((WhiteRooks.GetData() & mask) != 0) return 3;
-                if ((WhiteQueens.GetData() & mask) != 0) return 4;
-                if ((WhiteKing.GetData() & mask) != 0) return 5;
+                if ((Pieces[0] & mask) != 0) return 0;
+                if ((Pieces[1] & mask) != 0) return 1;
+                if ((Pieces[2] & mask) != 0) return 2;
+                if ((Pieces[3] & mask) != 0) return 3;
+                if ((Pieces[4] & mask) != 0) return 4;
+                if ((Pieces[5] & mask) != 0) return 5;
                 else return 7;
             }
             if (Colour == 1) //black piece on the location
             {
-                if ((BlackPawns.GetData() & mask) != 0) return 0;
-                if ((BlackKnights.GetData() & mask) != 0) return 1;
-                if ((BlackBishops.GetData() & mask) != 0) return 2;
-                if ((BlackRooks.GetData() & mask) != 0) return 3;
-                if ((BlackQueens.GetData() & mask) != 0) return 4;
-                if ((BlackKing.GetData() & mask) != 0) return 5;
+                if ((Pieces[6] & mask) != 0) return 0;
+                if ((Pieces[7] & mask) != 0) return 1;
+                if ((Pieces[8] & mask) != 0) return 2;
+                if ((Pieces[9] & mask) != 0) return 3;
+                if ((Pieces[10] & mask) != 0) return 4;
+                if ((Pieces[11] & mask) != 0) return 5;
                 else return 7;
             }
             return 7;
@@ -109,20 +96,19 @@ namespace ChessEngine
         {
             MoveNumber++;
             //History.Push(move);
-            // if (move.GetCapture() == 5)
-            // {
-            //     ColourToMove = (ColourToMove == 0 ? 1 : 0);
-            //     Console.WriteLine(MoveGenerator.InCheck(this, ColourToMove));
-            //     ColourToMove = (ColourToMove == 0 ? 1 : 0);
+            if (move.GetCapture() == 5)
+            {
+                ColourToMove = (ColourToMove == 0 ? 1 : 0);
+                Console.WriteLine(MoveGenerator.InCheck(this, ColourToMove));
+                ColourToMove = (ColourToMove == 0 ? 1 : 0);
 
-            //     move.PrintMove();
-            //     PrintBoard();
-            //     OccupiedSquares.PrintData();
-            //     BlackPawns.PrintData();
-            //     for (int i = 0; i < History.Count(); i++) {
-            //         //History.Pop().PrintMove();
-            //     }
-            // }
+                move.PrintMove();
+                PrintBoard();
+                //OccupiedSquares.PrintData();
+                for (int i = 0; i < History.Count(); i++) {
+                    //History.Pop().PrintMove();
+                }
+            }
 
             // if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
             // {
@@ -137,35 +123,35 @@ namespace ChessEngine
             int piece = move.GetPiece();
             int flag = move.GetFlag();
             int capture = move.GetCapture();
-            OccupiedSquares.ClearBit(start); //adjusts the occupied bitboard
-            OccupiedSquares.SetBit(target);
+            OccupiedSquares &= ~(1UL << start); //adjusts the occupied bitboard
+            OccupiedSquares |= 1UL << target;
 
             //adjusted colour specific occupancy bitboards
             if (ColourToMove == 0) //white moving
             {
-                WhitePieces.ClearBit(start); //clear the start square
-                WhitePieces.SetBit(target); //target square is now occupied for white
+                WhitePieces &= ~(1UL << start); //clear the start square
+                WhitePieces |= (1UL << target); //target square is now occupied for white
                 //for piece specific bitboards
-                Pieces[piece].ClearBit(start);
-                Pieces[piece].SetBit(target);
+                Pieces[piece] &= ~(1UL << start);
+                Pieces[piece] |= (1UL << target);
                 //taking into account captures
                 if (capture != 0b111) 
                 {
-                    Pieces[capture + 6].ClearBit(target);
-                    BlackPieces.ClearBit(target); //any piece on the target square is captured
+                    Pieces[capture + 6] &= ~(1UL << target);
+                    BlackPieces &= ~(1UL << target); //any piece on the target square is captured
                 }
                 //for (int i = 6; i<12;i++) Pieces[i].ClearBit(target);
             } else { //black moving
-                BlackPieces.ClearBit(start);
-                BlackPieces.SetBit(target);
+                BlackPieces &= ~(1UL << start);
+                BlackPieces |= (1UL << target);
                 //for the piece specific bitboards
-                Pieces[piece + 6].ClearBit(start); //the +6 is for offsetting the piece to the index for the black pieces
-                Pieces[piece + 6].SetBit(target);
+                Pieces[piece + 6] &= ~(1UL << start); //the +6 is for offsetting the piece to the index for the black pieces
+                Pieces[piece + 6] |= (1UL << target);
                 //taking into account captures
                 if (capture != 0b111)
                 { 
-                    Pieces[capture].ClearBit(target);
-                    WhitePieces.ClearBit(target);
+                    Pieces[capture] &= ~(1UL << target);
+                    WhitePieces &= ~(1UL << target);
                 }
                 //for (int i = 0; i<6;i++) Pieces[i].ClearBit(target);
             }
@@ -179,22 +165,22 @@ namespace ChessEngine
             if (flag == 0b0101) //en passant capture
             {
                 if (ColourToMove == 0) {
-                    BlackPawns.ClearBit(target - 8);
-                    BlackPieces.ClearBit(target - 8);
-                    OccupiedSquares.ClearBit(target + 8);
+                    Pieces[6] &= ~(1UL << (target - 8));
+                    BlackPieces &= ~(1UL << (target - 8));
+                    OccupiedSquares &= ~(1UL << (target + 8));
                 }
                 else {
-                    WhitePawns.ClearBit(target + 8);
-                    WhitePieces.ClearBit(target + 8);
-                    OccupiedSquares.ClearBit(target + 8);
+                    Pieces[0] &= ~(1UL << (target + 8));
+                    WhitePieces &= ~(1UL << (target + 8));
+                    OccupiedSquares &= ~(1UL << (target + 8));
                 }
                 EnPassantSquare = -1;
             }
             if (flag >= 0b1000) //promotion
             {
-                Pieces[(flag & 0b0011) + (ColourToMove == 0 ? 1 : 7)].SetBit(target); //promotion piece bitboard
-                Pieces[(ColourToMove == 0 ? 0 : 6)].ClearBit(target); //pawn bitboard
-                Pieces[(ColourToMove == 0 ? 0 : 6)].ClearBit(start);
+                Pieces[(flag & 0b0011) + (ColourToMove == 0 ? 1 : 7)] |= 1UL << target; //promotion piece bitboard
+                Pieces[(ColourToMove == 0 ? 0 : 6)] &= ~(1UL << target); //pawn bitboard
+                Pieces[(ColourToMove == 0 ? 0 : 6)] &= ~(1UL << start);
             }
             //UpdateEval(move);
             UpdateZobrist(move);
@@ -210,65 +196,65 @@ namespace ChessEngine
             int piece = move.GetPiece();
             int flag = move.GetFlag();
             int capture = move.GetCapture();
-            if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
-            {
-                this.Uncastle((move.GetFlag() == 0b0010) ? 1 : 2);
-                UpdateEval(move);
-                UpdateZobrist(move);
-                ColourToMove = (ColourToMove == 0 ? 1 : 0); //because the zobrist is made from scratch including a move change    
-                return;
-            }
+            // if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
+            // {
+            //     this.Uncastle((move.GetFlag() == 0b0010) ? 1 : 2);
+            //     UpdateEval(move);
+            //     UpdateZobrist(move);
+            //     ColourToMove = (ColourToMove == 0 ? 1 : 0); //because the zobrist is made from scratch including a move change    
+            //     return;
+            // }
             if (ColourToMove == 1) //white unmaking the unmove
             {
-                WhitePieces.SetBit(start);
-                WhitePieces.ClearBit(target);
-                OccupiedSquares.SetBit(start);
-                Pieces[piece].ClearBit(target); //empty where the piece just moved back from
+                WhitePieces |= (1UL << start);
+                WhitePieces &= ~(1UL << target);
+                OccupiedSquares |= (1UL << start);
+                Pieces[piece] &= ~(1UL << target); //empty where the piece just moved back from
                 if (capture != 0b111) // if it was a capturing move
                 {
-                    Pieces[capture + 6].SetBit(target);
-                    BlackPieces.SetBit(target);
-                    OccupiedSquares.SetBit(target);
+                    Pieces[capture + 6] |= (1UL << target);
+                    BlackPieces |= (1UL << target);
+                    OccupiedSquares |= (1UL << target);
                 } else{
-                    OccupiedSquares.ClearBit(target);
+                    OccupiedSquares &= ~(1UL << target);
                 }
                 if (flag >= 0b1000) //promotion
                 {
-                    Pieces[0].SetBit(start); //move the piece back but into a pawn
-                    Pieces[(flag & 0b0011) + 1].ClearBit(target);
+                    Pieces[0] |= (1UL << start); //move the piece back but into a pawn
+                    Pieces[(flag & 0b0011) + 1] &= ~(1UL << target);
                 } else {
-                    Pieces[piece].SetBit(start);
+                    Pieces[piece] |= (1UL << start);
                 }
                 if (flag == 0b0101) { //en passant
-                    BlackPawns.SetBit(target - 8);
-                    BlackPieces.SetBit(target - 8);
-                    OccupiedSquares.SetBit(target - 8);
+                    Pieces[6] |= (1UL << (target - 8));
+                    BlackPieces |= (1UL << (target - 8));
+                    OccupiedSquares |= (1UL << (target - 8));
                     EnPassantSquare = target - 8;
                 }
             } else {
-                BlackPieces.SetBit(start);
-                BlackPieces.ClearBit(target);
-                OccupiedSquares.SetBit(start);
-                Pieces[piece + 6].ClearBit(target); //empty where the piece just moved back from
+                BlackPieces |= (1UL << start);
+                BlackPieces &= ~(1UL << target);
+                OccupiedSquares |= (1UL << start);
+                Pieces[piece + 6] &= ~(1UL << target); //empty where the piece just moved back from
                 if (capture != 0b111) // if it was a capturing move
                 {
-                    Pieces[capture].SetBit(target);
-                    WhitePieces.SetBit(target);
-                    OccupiedSquares.SetBit(target);
+                    Pieces[capture] |= (1UL << target);
+                    WhitePieces |= (1UL << target);
+                    OccupiedSquares |= (1UL << target);
                 } else{
-                    OccupiedSquares.ClearBit(target);
+                    OccupiedSquares &= ~(1UL << target);
                 }
                 if (flag >= 0b1000) //promotion
                 {
-                    Pieces[6].SetBit(start); //move the piece back
-                    Pieces[(flag & 0b0011) + 7].ClearBit(target);
+                    Pieces[6] |= (1UL << start); //move the piece back
+                    Pieces[(flag & 0b0011) + 7] &= ~(1UL << target);
                 } else {
-                    Pieces[piece+6].SetBit(start);
+                    Pieces[piece+6] |= (1UL << start);
                 }
                 if (flag == 0b0101) { //en passant
-                    WhitePawns.SetBit(target + 8);
-                    WhitePieces.SetBit(target + 8);
-                    OccupiedSquares.SetBit(target + 8);
+                    Pieces[0] |= (1UL << (target + 8));
+                    WhitePieces |= (1UL << (target + 8));
+                    OccupiedSquares |= (1UL << (target + 8));
                     EnPassantSquare = (target + 8);
                 }
             }
@@ -375,125 +361,125 @@ namespace ChessEngine
             Zobrist ^= Hasher.SideToMove;
         }
 
-        public void Uncastle(int type)
-        {
-            if (type == 1 && this.ColourToMove == 1) //short castle for white
-            {
-                this.WhiteKing.SetData(0x10UL); //king back in position
-                this.OccupiedSquares.AND(~0x60UL); //clear the king and rook
-                this.OccupiedSquares.OR(0x90UL); //puts king and rook back
-                this.WhitePieces.AND(~0x60UL); //clear the king and rook
-                this.WhitePieces.OR(0x90UL);
-                this.WhiteRooks.ClearBit(5); //clear rook
-                this.WhiteRooks.SetBit(7); //replace rook
-                this.WhiteLongCastle = true;
-                this.WhiteShortCastle = true;
-                return;
-            }
-            if (type == 2 && this.ColourToMove == 1) //long castle for white
-            {
-                this.WhiteKing.SetData(0x10UL); //resets king position
-                this.OccupiedSquares.AND(~0x6UL); //clears the king and rook
-                this.OccupiedSquares.OR(0x11UL);
-                this.WhitePieces.AND(~0x6UL); //clears the king and rook
-                this.WhitePieces.OR(0x11UL);
-                this.WhiteRooks.ClearBit(3); //clear rook
-                this.WhiteRooks.SetBit(0);// replace rook
-                this.WhiteLongCastle = true;
-                this.WhiteShortCastle = true;
-                return;
-            }
-            if (type == 1 && this.ColourToMove == 0) //short castle for black
-            {
-                this.BlackKing.SetData(0x1000000000000000UL); //resets king position
-                this.OccupiedSquares.AND(~0x6000000000000000UL); //clears rook and king
-                this.OccupiedSquares.OR(0x9000000000000000UL);
-                this.BlackPieces.AND(~0x6000000000000000UL); //clears rook and king
-                this.BlackPieces.OR(0x9000000000000000UL);
-                this.BlackRooks.ClearBit(61);
-                this.BlackRooks.SetBit(63);
-                this.BlackShortCastle = true;
-                this.BlackLongCastle = true;
-                return;
-            }
-            if (type == 2 && this.ColourToMove == 0) //long castle for black
-            {
-                //Console.WriteLine("un long castled for black");
-                this.BlackKing.SetData(0x1000000000000000UL); //resets king position
-                this.OccupiedSquares.AND(~0x0C00000000000000UL); //clears rook and king
-                this.OccupiedSquares.OR(0x1100000000000000UL);
-                this.BlackPieces.AND(~0x0C00000000000000UL); //clears rook and king
-                this.BlackPieces.OR(0x1100000000000000UL);
-                this.BlackRooks.ClearBit(59); //clears rook from castled position
-                this.BlackRooks.SetBit(56); //puts rook back in corner
-                this.BlackShortCastle = true;
-                this.BlackLongCastle = true;
-                return;
-            }
-        }
+        // public void Uncastle(int type)
+        // {
+        //     if (type == 1 && this.ColourToMove == 1) //short castle for white
+        //     {
+        //         this.WhiteKing.SetData(0x10UL); //king back in position
+        //         this.OccupiedSquares.AND(~0x60UL); //clear the king and rook
+        //         this.OccupiedSquares.OR(0x90UL); //puts king and rook back
+        //         this.WhitePieces.AND(~0x60UL); //clear the king and rook
+        //         this.WhitePieces.OR(0x90UL);
+        //         this.WhiteRooks.ClearBit(5); //clear rook
+        //         this.WhiteRooks.SetBit(7); //replace rook
+        //         this.WhiteLongCastle = true;
+        //         this.WhiteShortCastle = true;
+        //         return;
+        //     }
+        //     if (type == 2 && this.ColourToMove == 1) //long castle for white
+        //     {
+        //         this.WhiteKing.SetData(0x10UL); //resets king position
+        //         this.OccupiedSquares.AND(~0x6UL); //clears the king and rook
+        //         this.OccupiedSquares.OR(0x11UL);
+        //         this.WhitePieces.AND(~0x6UL); //clears the king and rook
+        //         this.WhitePieces.OR(0x11UL);
+        //         this.WhiteRooks.ClearBit(3); //clear rook
+        //         this.WhiteRooks.SetBit(0);// replace rook
+        //         this.WhiteLongCastle = true;
+        //         this.WhiteShortCastle = true;
+        //         return;
+        //     }
+        //     if (type == 1 && this.ColourToMove == 0) //short castle for black
+        //     {
+        //         this.BlackKing.SetData(0x1000000000000000UL); //resets king position
+        //         this.OccupiedSquares.AND(~0x6000000000000000UL); //clears rook and king
+        //         this.OccupiedSquares.OR(0x9000000000000000UL);
+        //         this.BlackPieces.AND(~0x6000000000000000UL); //clears rook and king
+        //         this.BlackPieces.OR(0x9000000000000000UL);
+        //         this.BlackRooks.ClearBit(61);
+        //         this.BlackRooks.SetBit(63);
+        //         this.BlackShortCastle = true;
+        //         this.BlackLongCastle = true;
+        //         return;
+        //     }
+        //     if (type == 2 && this.ColourToMove == 0) //long castle for black
+        //     {
+        //         //Console.WriteLine("un long castled for black");
+        //         this.BlackKing.SetData(0x1000000000000000UL); //resets king position
+        //         this.OccupiedSquares.AND(~0x0C00000000000000UL); //clears rook and king
+        //         this.OccupiedSquares.OR(0x1100000000000000UL);
+        //         this.BlackPieces.AND(~0x0C00000000000000UL); //clears rook and king
+        //         this.BlackPieces.OR(0x1100000000000000UL);
+        //         this.BlackRooks.ClearBit(59); //clears rook from castled position
+        //         this.BlackRooks.SetBit(56); //puts rook back in corner
+        //         this.BlackShortCastle = true;
+        //         this.BlackLongCastle = true;
+        //         return;
+        //     }
+        // }
 
-        public void Castle(int type)
-        {
-            if (type == 1 && this.ColourToMove == 0) //short castle for white
-            {
-                this.WhiteKing.SetData(0x40UL);
-                this.OccupiedSquares.AND(~0x90UL); 
-                this.OccupiedSquares.OR(0x60UL);
-                this.WhitePieces.AND(~0x90UL);
-                this.WhitePieces.OR(0x60UL);
-                this.WhiteRooks.ClearBit(7);
-                this.WhiteRooks.SetBit(5);
-                this.WhiteLongCastle = false;
-                this.WhiteShortCastle = false;
-                return;
-            }
-            if (type == 2 && this.ColourToMove == 0) //long castle for white
-            {
-                this.WhiteKing.SetData(0x4UL);
-                this.OccupiedSquares.AND(~0x11UL);
-                this.OccupiedSquares.OR(0xCUL);
-                this.WhitePieces.AND(~0x11UL);
-                this.WhitePieces.OR(0xCUL);
-                this.WhiteRooks.ClearBit(0);
-                this.WhiteRooks.SetBit(3);
-                this.WhiteLongCastle = false;
-                this.WhiteShortCastle = false;
-                return;
-            }
-            if (type == 1 && this.ColourToMove == 1) //short castle for black
-            {
-                this.BlackKing.SetData(0x4000000000000000UL);
-                this.OccupiedSquares.AND(~0x9000000000000000UL);
-                this.OccupiedSquares.OR(0x6000000000000000UL);
-                this.BlackPieces.AND(~0x9000000000000000UL);
-                this.BlackPieces.OR(0x6000000000000000UL);
-                this.BlackRooks.ClearBit(63);
-                this.BlackRooks.SetBit(61);
-                this.BlackShortCastle = false;
-                this.BlackLongCastle = false;
-                return;
-            }
-            if (type == 2 && this.ColourToMove == 1) //long castle for black
-            {
-                this.BlackKing.SetData(0x400000000000000UL);
-                this.OccupiedSquares.AND(~0x1100000000000000UL);
-                this.OccupiedSquares.OR(0x0C00000000000000UL);
-                this.BlackPieces.AND(~0x1100000000000000UL);
-                this.BlackPieces.OR(0x0C00000000000000UL);
-                this.BlackRooks.ClearBit(56);
-                this.BlackRooks.SetBit(59);
-                this.BlackShortCastle = false;
-                this.BlackLongCastle = false;
-                return;
-            }
-        }
+        // public void Castle(int type)
+        // {
+        //     if (type == 1 && this.ColourToMove == 0) //short castle for white
+        //     {
+        //         this.WhiteKing.SetData(0x40UL);
+        //         this.OccupiedSquares.AND(~0x90UL); 
+        //         this.OccupiedSquares.OR(0x60UL);
+        //         this.WhitePieces.AND(~0x90UL);
+        //         this.WhitePieces.OR(0x60UL);
+        //         this.WhiteRooks.ClearBit(7);
+        //         this.WhiteRooks.SetBit(5);
+        //         this.WhiteLongCastle = false;
+        //         this.WhiteShortCastle = false;
+        //         return;
+        //     }
+        //     if (type == 2 && this.ColourToMove == 0) //long castle for white
+        //     {
+        //         this.WhiteKing.SetData(0x4UL);
+        //         this.OccupiedSquares.AND(~0x11UL);
+        //         this.OccupiedSquares.OR(0xCUL);
+        //         this.WhitePieces.AND(~0x11UL);
+        //         this.WhitePieces.OR(0xCUL);
+        //         this.WhiteRooks.ClearBit(0);
+        //         this.WhiteRooks.SetBit(3);
+        //         this.WhiteLongCastle = false;
+        //         this.WhiteShortCastle = false;
+        //         return;
+        //     }
+        //     if (type == 1 && this.ColourToMove == 1) //short castle for black
+        //     {
+        //         this.BlackKing.SetData(0x4000000000000000UL);
+        //         this.OccupiedSquares.AND(~0x9000000000000000UL);
+        //         this.OccupiedSquares.OR(0x6000000000000000UL);
+        //         this.BlackPieces.AND(~0x9000000000000000UL);
+        //         this.BlackPieces.OR(0x6000000000000000UL);
+        //         this.BlackRooks.ClearBit(63);
+        //         this.BlackRooks.SetBit(61);
+        //         this.BlackShortCastle = false;
+        //         this.BlackLongCastle = false;
+        //         return;
+        //     }
+        //     if (type == 2 && this.ColourToMove == 1) //long castle for black
+        //     {
+        //         this.BlackKing.SetData(0x400000000000000UL);
+        //         this.OccupiedSquares.AND(~0x1100000000000000UL);
+        //         this.OccupiedSquares.OR(0x0C00000000000000UL);
+        //         this.BlackPieces.AND(~0x1100000000000000UL);
+        //         this.BlackPieces.OR(0x0C00000000000000UL);
+        //         this.BlackRooks.ClearBit(56);
+        //         this.BlackRooks.SetBit(59);
+        //         this.BlackShortCastle = false;
+        //         this.BlackLongCastle = false;
+        //         return;
+        //     }
+        // }
 
         public void RefreshBitboardConfiguration()
         {
-            BlackPieces = new Bitboard(BlackPawns.GetData() | BlackKnights.GetData() | BlackBishops.GetData() | BlackRooks.GetData() | BlackQueens.GetData() | BlackKing.GetData());
-            WhitePieces = new Bitboard(WhitePawns.GetData() | WhiteKnights.GetData() | WhiteBishops.GetData() | WhiteRooks.GetData() | WhiteQueens.GetData() | WhiteKing.GetData());
-            OccupiedSquares = new Bitboard(BlackPieces.GetData() | WhitePieces.GetData());
-            Pieces = [WhitePawns, WhiteKnights, WhiteBishops, WhiteRooks, WhiteQueens, WhiteKing, BlackPawns, BlackKnights, BlackBishops, BlackRooks, BlackQueens, BlackKing];
+            BlackPieces = Pieces[6] | Pieces[7] | Pieces[8] | Pieces[9] | Pieces[10] | Pieces[11];
+            WhitePieces = Pieces[0] | Pieces[1] | Pieces[2] | Pieces[3] | Pieces[4]| Pieces[5];
+            OccupiedSquares = BlackPieces | WhitePieces;
+            //Pieces = [WhitePawns, WhiteKnights, WhiteBishops, WhiteRooks, WhiteQueens, WhiteKing, BlackPawns, BlackKnights, BlackBishops, BlackRooks, BlackQueens, BlackKing];
         }
 
         public Board Copy()
@@ -512,19 +498,10 @@ namespace ChessEngine
             board.GamePhase = this.GamePhase;
             board.History = this.History;
 
-            board.WhitePawns.SetData(this.WhitePawns.GetData());
-            board.WhiteKnights.SetData(this.WhiteKnights.GetData());
-            board.WhiteBishops.SetData(this.WhiteBishops.GetData());
-            board.WhiteRooks.SetData(this.WhiteRooks.GetData());
-            board.WhiteQueens.SetData(this.WhiteQueens.GetData());
-            board.WhiteKing.SetData(this.WhiteKing.GetData());
-
-            board.BlackPawns.SetData(this.BlackPawns.GetData());
-            board.BlackKnights.SetData(this.BlackKnights.GetData());
-            board.BlackBishops.SetData(this.BlackBishops.GetData());
-            board.BlackRooks.SetData(this.BlackRooks.GetData());
-            board.BlackQueens.SetData(this.BlackQueens.GetData());
-            board.BlackKing.SetData(this.BlackKing.GetData());
+            for (int i = 0; i < 12; i++)
+            {
+                board.Pieces[i] = this.Pieces[i];
+            }
             
             board.RefreshBitboardConfiguration();
 
@@ -549,50 +526,50 @@ namespace ChessEngine
                     switch (character) //lowercase for black, uppercase for white
                     {
                         case 'p':
-                            PieceCount[5]++;
-                            BlackPawns.SetBit(currentSquare);
+                            PieceCount[6]++;
+                            Pieces[6] |= (1UL << currentSquare);
                             break;
                         case 'n':
-                            PieceCount[6]++;
-                            BlackKnights.SetBit(currentSquare);
+                            PieceCount[7]++;
+                            Pieces[7] |= (1UL << currentSquare);
                             break;
                         case 'b':
-                            PieceCount[7]++;
-                            BlackBishops.SetBit(currentSquare);
+                            PieceCount[8]++;
+                            Pieces[8] |= (1UL << currentSquare);
                             break;
                         case 'r':
-                            PieceCount[8]++;
-                            BlackRooks.SetBit(currentSquare);
+                            PieceCount[9]++;
+                            Pieces[9] |= (1UL << currentSquare);
                             break;
                         case 'q':
-                            PieceCount[9]++;
-                            BlackQueens.SetBit(currentSquare);
+                            PieceCount[10]++;
+                            Pieces[10] |= (1UL << currentSquare);
                             break;
                         case 'k':
-                            BlackKing.SetBit(currentSquare);
+                            Pieces[11] |= (1UL << currentSquare);
                             break;
                         case 'P':
                             PieceCount[0]++;
-                            WhitePawns.SetBit(currentSquare);
+                            Pieces[0] |= (1UL << currentSquare);
                             break;
                         case 'N':
                             PieceCount[1]++;
-                            WhiteKnights.SetBit(currentSquare);
+                            Pieces[1] |= (1UL << currentSquare);
                             break;
                         case 'B':
                             PieceCount[2]++;
-                            WhiteBishops.SetBit(currentSquare);
+                            Pieces[2] |= (1UL << currentSquare);
                             break;
                         case 'R':
                             PieceCount[3]++;
-                            WhiteRooks.SetBit(currentSquare);
+                            Pieces[3] |= (1UL << currentSquare);
                             break;
                         case 'Q':
                             PieceCount[4]++;
-                            WhiteQueens.SetBit(currentSquare);
+                            Pieces[4] |= (1UL << currentSquare);
                             break;
                         case 'K':
-                            WhiteKing.SetBit(currentSquare);
+                            Pieces[5] |= (1UL << currentSquare);
                             break;
                         // case ' ':
                         //     ColourToMove = (FEN[currentSquare+1] == 'w' ? 0 : 1);
@@ -615,18 +592,18 @@ namespace ChessEngine
             string BoardRepresentation = ""; //initial state to print
             for (int i = 0; i < 64; i++)
             {
-                if (WhitePawns.IsBitSet(i)) {BoardRepresentation += "P ";}
-                else if (WhiteKnights.IsBitSet(i)) {BoardRepresentation += "N ";}
-                else if (WhiteBishops.IsBitSet(i)) {BoardRepresentation += "B ";}
-                else if (WhiteRooks.IsBitSet(i)) {BoardRepresentation += "R ";}
-                else if (WhiteQueens.IsBitSet(i)) {BoardRepresentation += "Q ";}
-                else if (WhiteKing.IsBitSet(i)) {BoardRepresentation += "K ";}
-                else if (BlackPawns.IsBitSet(i)) {BoardRepresentation += "p ";}
-                else if (BlackKnights.IsBitSet(i)) {BoardRepresentation += "n ";}
-                else if (BlackBishops.IsBitSet(i)) {BoardRepresentation += "b ";}
-                else if (BlackRooks.IsBitSet(i)) {BoardRepresentation += "r ";}
-                else if (BlackQueens.IsBitSet(i)) {BoardRepresentation += "q ";}
-                else if (BlackKing.IsBitSet(i)) {BoardRepresentation += "k ";}
+                if ((Pieces[0] & (1UL << i))!=0) {BoardRepresentation += "P ";}
+                else if ((Pieces[1] & (1UL << i))!=0) {BoardRepresentation += "N ";}
+                else if ((Pieces[2] & (1UL << i))!=0) {BoardRepresentation += "B ";}
+                else if ((Pieces[3] & (1UL << i))!=0) {BoardRepresentation += "R ";}
+                else if ((Pieces[4] & (1UL << i))!=0) {BoardRepresentation += "Q ";}
+                else if ((Pieces[5] & (1UL << i))!=0) {BoardRepresentation += "K ";}
+                else if ((Pieces[6] & (1UL << i))!=0) {BoardRepresentation += "p ";}
+                else if ((Pieces[7] & (1UL << i))!=0) {BoardRepresentation += "n ";}
+                else if ((Pieces[8] & (1UL << i))!=0) {BoardRepresentation += "b ";}
+                else if ((Pieces[9] & (1UL << i))!=0) {BoardRepresentation += "r ";}
+                else if ((Pieces[10] & (1UL << i))!=0) {BoardRepresentation += "q ";}
+                else if ((Pieces[11] & (1UL << i))!=0) {BoardRepresentation += "k ";}
                 else {BoardRepresentation += "- ";}
             }
             Console.WriteLine(BoardRepresentation.Substring(112,16));
@@ -643,49 +620,49 @@ namespace ChessEngine
         public void PrintBitboards()
         {
             Console.WriteLine("White Pawns:");
-            WhitePawns.PrintData();
+            (new Bitboard(Pieces[0])).PrintData();
             
             Console.WriteLine("White Knights:");
-            WhiteKnights.PrintData();
+            (new Bitboard(Pieces[1])).PrintData();
             
             Console.WriteLine("White Bishops:");
-            WhiteBishops.PrintData();
+            (new Bitboard(Pieces[2])).PrintData();
             
             Console.WriteLine("White Rooks:");
-            WhiteRooks.PrintData();
+            (new Bitboard(Pieces[3])).PrintData();
             
             Console.WriteLine("White Queens:");
-            WhiteQueens.PrintData();
+            (new Bitboard(Pieces[4])).PrintData();
             
             Console.WriteLine("White King:");
-            WhiteKing.PrintData();
+            (new Bitboard(Pieces[5])).PrintData();
             
             Console.WriteLine("Black Pawns:");
-            BlackPawns.PrintData();
+            (new Bitboard(Pieces[6])).PrintData();
             
             Console.WriteLine("Black Knights:");
-            BlackKnights.PrintData();
+            (new Bitboard(Pieces[7])).PrintData();
             
             Console.WriteLine("Black Bishops:");
-            BlackBishops.PrintData();
+            (new Bitboard(Pieces[8])).PrintData();
             
             Console.WriteLine("Black Rooks:");
-            BlackRooks.PrintData();
+            (new Bitboard(Pieces[9])).PrintData();
             
             Console.WriteLine("Black Queens:");
-            BlackQueens.PrintData();
+            (new Bitboard(Pieces[10])).PrintData();
             
             Console.WriteLine("Black King:");
-            BlackKing.PrintData();
+            (new Bitboard(Pieces[11])).PrintData();
             
             Console.WriteLine("White Pieces:");
-            WhitePieces.PrintData();
+            (new Bitboard(WhitePieces)).PrintData();
             
             Console.WriteLine("Black Pieces:");
-            BlackPieces.PrintData();
+            (new Bitboard(BlackPieces)).PrintData();
             
             Console.WriteLine("Occupied Squares:");
-            OccupiedSquares.PrintData();
+            (new Bitboard(OccupiedSquares)).PrintData();
         }
     }
 }
