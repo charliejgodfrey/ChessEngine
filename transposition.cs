@@ -25,7 +25,7 @@ namespace ChessEngine
             {
                 for (int i = 0; i < 64; i++)
                 {
-                    if ((board.Pieces[p]&(1UL << i)) == 1) hash ^= ZobristTable[p][i];
+                    if ((board.Pieces[p]&(1UL << i)) != 0) hash ^= ZobristTable[p][i];
                 }
             }
             if (board.ColourToMove == 1) hash ^= SideToMove;

@@ -19,6 +19,8 @@ namespace ChessEngine
         public static Bitboard[,] BishopAttacks = new Bitboard[64,8196];
         public static ulong[] KingAdjacents = new ulong[64];
         public static ulong[,] KingRays = new ulong[64, 8];
+        public static ulong[] IsolationMasks = new ulong[64];
+        public static ulong[,] PasserMasks = new ulong[2,64];
 
         public static void InitializeAttackBitboards()
         {
@@ -30,6 +32,32 @@ namespace ChessEngine
             LoadMagics();
             PreComputeKingAdjacents();
             PreComputeKingRays();
+            PreComputeIsolationMasks();
+            PreComputePasserMasks();
+        }
+
+        public static void PreComputePasserMasks()
+        {
+            for (int i = 0; i < 64; i++) 
+            {
+                ulong InFront = ulong.MaxValue << (8*(i / 8));
+                ulong NextTo = 0x0101010101010101UL << (i%8);
+                if (i % 8 != 0) NextTo |= 0x0101010101010101UL << (i%8 - 1);
+                if (i % 8 != 7) NextTo |= 0x0101010101010101UL << (i%8 + 1);
+                PasserMasks[0,i] = NextTo & (InFront<<8);
+                PasserMasks[1,i] = NextTo & ~InFront;
+            }
+        }
+
+        public static void PreComputeIsolationMasks()
+        {
+            for (int i = 0; i < 64; i++) 
+            {
+                ulong NextTo = 0UL;
+                if (i % 8 != 0) NextTo |= 0x0101010101010101UL << (i%8 - 1);
+                if (i % 8 != 7) NextTo |= 0x0101010101010101UL << (i%8 + 1);
+                IsolationMasks[i] = NextTo;
+            }
         }
 
         public static void PreComputeKingRays()

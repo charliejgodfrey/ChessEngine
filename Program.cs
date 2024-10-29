@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections;
+using System.Numerics;
 namespace ChessEngine 
 {
     public class Program 
     {
+        public static int turn = 0;
         static void Main()
         {
             //setup stuff
@@ -15,42 +17,76 @@ namespace ChessEngine
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             Test.LoadTestPositions();
-            //board = new Board(Test.FenDataBase[18]);
+            //board = new Board("8/5p2/6p1/p1p3P1/P1P5/7P/1P6/8");
             board.PrintBoard();
-            board.Eval = Evaluation.WeightedMaterial(board);
+            board.Zobrist = board.Hasher.Hash(board);
+            board.Eval = Evaluation.Evaluate(board);
             for (int i = 0; i < 6; i++) Console.WriteLine(Search.Perft(i,board));
 
             //after program has been loaded
 
             while (1==1)
             {
-                Move move = GetUserMove(board);
-                board.MakeMove(move);
-                board.PrintBoard();
-
-                Console.WriteLine("board: " + board.Eval + " actual: " + Evaluation.WeightedMaterial(board));
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 12, TTable);
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 16, TTable);
                 board.MakeMove(BestMove);
-                board.PrintBoard();
-                Console.WriteLine("computer eval: " + Eval);
-                Console.WriteLine("board: " + board.Eval + " actual: " + Evaluation.WeightedMaterial(board));
-                //BestMove.PrintMove();
                 Console.WriteLine(FormatMove(BestMove));
-                Console.WriteLine(((float)MoveGenerator.fullcheck/(float)(MoveGenerator.fullcheck + MoveGenerator.normal)*100) + "% of moves checked in depth");
-                Console.WriteLine("full: " + MoveGenerator.fullcheck + "normal: " + MoveGenerator.normal);
-                MoveGenerator.normal = 0;
-                MoveGenerator.fullcheck = 0;
-                //break;
+                board.PrintBoard();
+                Console.WriteLine("tranpositions: " + Search.Transpositions);
+                Console.WriteLine(board.Zobrist);
+                Console.WriteLine(board.Hasher.Hash(board));
+                break;
+                // Move[] moves = new Move[3];
+                // Move move = GetUserMove(board);
+                // board.MakeMove(move);
+                // board.PrintBoard();
+                // moves[0] = move;
+                // Console.WriteLine(board.Zobrist);
 
-                // (BestMove, Eval, PV) = Search.IterativeDeepeningSearch(board, 10, TTable);
-                // board.MakeMove(BestMove);
-                // //board.PrintBoard();
-                // //BestMove.PrintMove();
-                // Console.WriteLine(FormatMove(BestMove));
-                // // Console.WriteLine("Eval: " + (board.Eval/100));
-                // // Console.WriteLine("Eval: " + (Evaluation.WeightedMaterial(board)/100));
-                // board.RefreshBitboardConfiguration();
-                //break;
+
+                // move = GetUserMove(board);
+                // board.MakeMove(move);
+                // board.PrintBoard();
+                // moves[1] = move;
+                // Console.WriteLine(board.Zobrist);
+
+
+
+                // move = GetUserMove(board);
+                // board.MakeMove(move);
+                // board.PrintBoard();
+                // moves[2] = move;
+                // Console.WriteLine(board.Zobrist);
+
+                // board.UnmakeMove(moves[2]);
+                // board.UnmakeMove(moves[1]);
+                // board.UnmakeMove(moves[0]);
+                // Console.WriteLine(board.Zobrist);
+
+                // move = GetUserMove(board);
+                // board.MakeMove(move);
+                // board.PrintBoard();
+                // moves[0] = move;
+                // Console.WriteLine(board.Zobrist);
+
+
+                // move = GetUserMove(board);
+                // board.MakeMove(move);
+                // board.PrintBoard();
+                // moves[1] = move;
+                // Console.WriteLine(board.Zobrist);
+
+
+
+                // move = GetUserMove(board);
+                // board.MakeMove(move);
+                // board.PrintBoard();
+                // moves[2] = move;
+                // Console.WriteLine(board.Zobrist);
+
+                // board.UnmakeMove(moves[2]);
+                // board.UnmakeMove(moves[1]);
+                // board.UnmakeMove(moves[0]);
+                // Console.WriteLine(board.Zobrist);
             }
         }
 
@@ -70,7 +106,7 @@ namespace ChessEngine
 
         public static void PrintMoves(Board board)
         {
-            Move[] moves = MoveGenerator.GenerateMoves(board);
+            (bool Check, Move[] moves) = MoveGenerator.GenerateMoves(board);
             for (int i = 0; i < 218; i++)
             {
                 if (moves[i].GetData() == 0) continue;
@@ -86,7 +122,7 @@ namespace ChessEngine
             {
                 int Start = Int32.Parse(Console.ReadLine());
                 int Target = Int32.Parse(Console.ReadLine());
-                Move[] Moves = MoveGenerator.GenerateMoves(board);
+                (bool Check, Move[] Moves) = MoveGenerator.GenerateMoves(board);
                 for (int i = 0; i < 218; i++)
                 {
                     if (Moves[i].GetStart() == Start && Moves[i].GetTarget() == Target)

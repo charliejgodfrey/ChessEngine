@@ -6,6 +6,7 @@ namespace ChessEngine
         public static Move[] EmptyVariation = new Move[100];
         public static int LMRThreshold = 4;
         public static int NodesEvaluated = 0;
+        public static int Transpositions = 0;
 
         public static (Move, float, Move[]) IterativeDeepeningSearch(Board board, int maxDepth, TranspositionTable TTable)
         {
@@ -28,7 +29,7 @@ namespace ChessEngine
                 //PrincipleVariation[i].PrintMove();
             }
             if (BestMove.GetData() == NullMove.GetData()) {
-                Move[] Moves = MoveGenerator.GenerateMoves(board);
+                (bool Check, Move[] Moves) = MoveGenerator.GenerateMoves(board);
                 return (Moves[0], Eval, PrincipleVariation);
             }
             return (BestMove, Eval, PrincipleVariation);
@@ -42,11 +43,15 @@ namespace ChessEngine
 
             if (entry != null) //transposition table stuff
             {
-                //Console.WriteLine("transposition");
+                Transpositions++;
                 if (entry.NodeType == 0) // exact value
                 {
+                    //Transpositions++;
                     HashMove = entry.BestMove;
-                    if (entry.Depth >= Depth) return (entry.BestMove, entry.Evaluation, EmptyVariation);
+                    if (entry.Depth >= Depth) {
+                        //Transpositions++;
+                        return (entry.BestMove, entry.Evaluation, EmptyVariation);
+                    }
                 }
                 else if (entry.NodeType == 1) // lower bound
                 {
@@ -86,21 +91,19 @@ namespace ChessEngine
             float previousEval = Alpha;
             Move ReturnMove = NullMove;
 
-            Move[] PrincipleVariation = new Move[100];
-
-            Move[] Moves = MoveGenerator.GenerateMoves(board);
+            (bool Check, Move[] Moves) = MoveGenerator.GenerateMoves(board);
             Evaluation.OrderMoves(board, Moves, HashMove, Depth, PreviousMove); //this increases pruning an insanely huge amount
             
             Move BestMove = NullMove;
 
             if (Moves[0].GetData() == 0) //no legal moves
             {
-                if (MoveGenerator.InCheck(board, board.ColourToMove)) return (NullMove, -100000 * Depth, EmptyVariation); //checkmate
+                if (Check) return (NullMove, -100000 * Depth, EmptyVariation); //checkmate
                 else return (NullMove, 0, EmptyVariation); //stalemate
             }
             ReturnMove = Moves[0];
 
-            if (1==2&&Depth > 3 && !MoveGenerator.InCheck(board, board.ColourToMove) && board.GamePhase > 20 && PreviousMove.GetData() != 0) //appropriate for Null Move pruning, need to refine when this search should be used, at the moment it doesn't seem that beneficial
+            if (1==2&&Depth > 3 && !Check && board.GamePhase > 100 && PreviousMove.GetData() != 0) //appropriate for Null Move pruning, need to refine when this search should be used, at the moment it doesn't seem that beneficial
             {
                 int reduction = 3;// (Depth == 3 ? 3 : 4); //this speeds things up a tonne
 
@@ -109,7 +112,7 @@ namespace ChessEngine
                 board.UnmakeEmpty(); //unempty move
                 if (-Score >= Beta) 
                 {
-                    TTable.Store(board.Zobrist, Beta, Depth-reduction, NullMove, 1, true);
+                    TTable.Store(board.Zobrist, Beta, Depth - reduction, NullMove, 1, true);
                     return (NullMove, Beta, PV);
                 }
             }
@@ -123,7 +126,7 @@ namespace ChessEngine
                 float Score;
                 Move[] PV;
 
-                if (i ==0 || Depth < 3) //what it thinks the best move is 
+                if (i == 0 || Depth < 3) //what it thinks the best move is 
                 {
                     (TopMove, Score, PV) = AlphaBeta(board, Depth - 1, TTable, Moves[i], -Beta, -Alpha); //search at full depth
                 } else {
@@ -145,7 +148,7 @@ namespace ChessEngine
                 {
                     maxEval = Eval;
                     ReturnMove = Moves[i];
-                    PrincipleVariation = PV;
+                    //PrincipleVariation = PV;
                 }
                 if (Eval > Alpha)
                 {
@@ -165,11 +168,11 @@ namespace ChessEngine
             }
             if (nodetype == 1 || (Alpha > previousEval+100) && PreviousMove.GetData() != 0) // the best move in this position was unexpectidly good
             {
-                Evaluation.CounterMoves[PreviousMove.GetStart(),PreviousMove.GetTarget()] = ReturnMove; //implement remembering the previous move
+                Evaluation.CounterMoves[PreviousMove.GetStart(),PreviousMove.GetTarget()] = ReturnMove;
             }
             TTable.Store(board.Zobrist, maxEval, Depth, ReturnMove,nodetype,false);
-            PrincipleVariation[Depth] = ReturnMove;
-            return (ReturnMove, maxEval, PrincipleVariation);
+            //PrincipleVariation[Depth] = ReturnMove;
+            return (ReturnMove, maxEval, EmptyVariation);
         }
 
         public static float QuiescienceSearch(Board board, TranspositionTable TTable, float Alpha = -1000000, float Beta = 1000000)
@@ -214,7 +217,12 @@ namespace ChessEngine
 
             Alpha = ((Alpha > Eval) ? Alpha : Eval);
 
-            Move[] moves = MoveGenerator.GenerateMoves(board, true); //only generates captures
+            (bool Check, Move[] moves) = MoveGenerator.GenerateMoves(board, true); //only generates captures
+
+            if (moves[0].GetData() == 0 && Check)
+            {
+                return -100000;
+            }
             Evaluation.OrderMoves(board, moves, (HashMove.GetCapture() != 7 && HashMove.GetData() != 0)?HashMove : NullMove, 0, NullMove);
             for (int i = 0; i < 218; i++)
             {
@@ -248,7 +256,7 @@ namespace ChessEngine
                 return 1;
             }
             int positions = 0;
-            Move[] moves = MoveGenerator.GenerateMoves(board);
+            (bool Check, Move[] moves) = MoveGenerator.GenerateMoves(board);
             for (int i = 0; i < 218; i++) //all move thingys have length 218
             {
                 if (moves[i].GetData() == 0) //done all non empty moves

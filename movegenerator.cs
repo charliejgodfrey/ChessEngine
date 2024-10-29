@@ -11,7 +11,7 @@ namespace ChessEngine
     {
         public static int normal = 0;
         public static int fullcheck = 0;
-        public static Move[] GenerateMoves(Board board, bool onlyCaptures = false)
+        public static (bool, Move[]) GenerateMoves(Board board, bool onlyCaptures = false)
         {
             Move[] Moves = new Move[218];
             int MoveNumber = 0;
@@ -36,7 +36,7 @@ namespace ChessEngine
             //if (!onlyCaptures) MoveNumber = CheckCastle(board, Moves, MoveNumber);
             Moves = FilterIllegalMoves(board, Moves, Check);
             //Console.WriteLine("turn: " + board.ColourToMove);
-            return Moves;
+            return (Check, Moves);
         }
 
         public static Move[] FilterIllegalMoves(Board board, Move[] Moves, bool Check) //assumes it is the turn of whoevers moves they are

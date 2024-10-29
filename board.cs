@@ -159,6 +159,7 @@ namespace ChessEngine
             //other checks:
             if (flag == 0b0001) //double pawn push
             {
+                //PreviousEnPassantSquare = EnPassantSquare;
                 EnPassantSquare = target + (ColourToMove == 0 ? -8 : 8); //the offset means that the square is referring to where an enpassanting pawn would move to - not where the piece is being captured
             } 
             else EnPassantSquare = -1;
