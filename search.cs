@@ -13,20 +13,17 @@ namespace ChessEngine
             Move BestMove = NullMove;
             float Eval = 0;
             Move[] PrincipleVariation = new Move[maxDepth];
-            for (int depth = 1; depth <= maxDepth; depth++)
+            for (int depth = 0; depth <= maxDepth; depth++)
             {
                 //if (depth > 7) Console.WriteLine("currently searching to depth: " + depth + "/" + maxDepth);
+                Transpositions = 0;
                 LMRThreshold = 3;//(maxDepth * 2 + 4) - depth*2;
                 NodesEvaluated = 0;
                 (BestMove, Eval, Move[] PV) = AlphaBeta(board, depth, TTable, NullMove);
-                if (depth > 0) Console.WriteLine("nodes evaluated for depth " + depth + ": " + NodesEvaluated + " current best move: " + Program.FormatMove(BestMove) + " eval: " + Eval);
+                Console.WriteLine("nodes evaluated for depth " + depth + ": " + NodesEvaluated + " current best move: " + Program.FormatMove(BestMove) + " eval: " + Eval + " transpositions: " + Transpositions);
                 Evaluation.ShiftKillerMoves();
                 Evaluation.InitializeKillerMoves(); //clear killer moves
                 PrincipleVariation = PV;
-            }
-            for (int i = PrincipleVariation.Count() - 1; i >= 0;i--)
-            {
-                //PrincipleVariation[i].PrintMove();
             }
             if (BestMove.GetData() == NullMove.GetData()) {
                 (bool Check, Move[] Moves) = MoveGenerator.GenerateMoves(board);
@@ -55,6 +52,7 @@ namespace ChessEngine
                 }
                 else if (entry.NodeType == 1) // lower bound
                 {
+                    //Transpositions++;
                     if (entry.Depth >= Depth) Alpha = ((Alpha > entry.Evaluation) ? Alpha : entry.Evaluation);
                     HashMove = entry.BestMove;
                     if (Alpha >= Beta)
@@ -221,12 +219,17 @@ namespace ChessEngine
 
             if (moves[0].GetData() == 0 && Check)
             {
-                return -100000;
+                (Check, moves) = MoveGenerator.GenerateMoves(board, false); //if they're in check we want to look at all moves
+                if (moves[0].GetData() == 0 || moves[0].GetData() == NullMove.GetData())
+                {
+                    return -1000000;
+                }
             }
             Evaluation.OrderMoves(board, moves, (HashMove.GetCapture() != 7 && HashMove.GetData() != 0)?HashMove : NullMove, 0, NullMove);
             for (int i = 0; i < 218; i++)
             {
                 if (moves[i].GetData() == 0) break;
+                if (moves[i].GetCapture() == 5) return 10000000;
                 board.MakeMove(moves[i]);
                 Eval = -QuiescienceSearch(board, TTable, -Beta, -Alpha);
                 board.UnmakeMove(moves[i]);

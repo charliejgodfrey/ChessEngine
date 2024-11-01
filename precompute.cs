@@ -21,6 +21,7 @@ namespace ChessEngine
         public static ulong[,] KingRays = new ulong[64, 8];
         public static ulong[] IsolationMasks = new ulong[64];
         public static ulong[,] PasserMasks = new ulong[2,64];
+        public static ulong[,] KingShieldMasks = new ulong[2,64];
 
         public static void InitializeAttackBitboards()
         {
@@ -34,6 +35,32 @@ namespace ChessEngine
             PreComputeKingRays();
             PreComputeIsolationMasks();
             PreComputePasserMasks();
+            PreComputeKingShieldMasks();
+        }
+
+        public static void PreComputeKingShieldMasks()
+        {
+            for (int i  = 0; i < 64; i++)
+            {
+                ulong WhiteMask = 0UL;
+                ulong BlackMask = 0UL;
+                if (i / 8 != 7)
+                {
+                    WhiteMask |= 1UL << (i+8);
+                    if (i % 8 != 0) WhiteMask |= 1UL << (i+7);
+                    if (i % 8 != 7) WhiteMask |= 1UL << (i+9);
+                }
+
+                if (i / 8 != 0)
+                {
+                    BlackMask |= 1UL << (i-8);
+                    if (i % 8 != 0) WhiteMask |= 1UL << (i-9);
+                    if (i % 8 != 0) WhiteMask |= 1UL << (i-7);
+                }
+
+                KingShieldMasks[0,i] = WhiteMask;
+                KingShieldMasks[1,i] = BlackMask;
+            }
         }
 
         public static void PreComputePasserMasks()

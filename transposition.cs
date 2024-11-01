@@ -31,6 +31,18 @@ namespace ChessEngine
             if (board.ColourToMove == 1) hash ^= SideToMove;
             return hash;
         }
+
+        public ulong PawnHash(Board board)
+        {
+            ulong hash = 0UL;
+            for (int i = 0; i < 64; i++)
+            {
+                if ((board.Pieces[0]&(1UL << i)) != 0) hash ^= ZobristTable[0][i];
+                if ((board.Pieces[6]&(1UL << i)) != 0) hash ^= ZobristTable[6][i];
+            }
+            return hash;
+            //we don't worry about the turn when it comes to pawn structure
+        }
     }
     public class TranspositionEntry 
     {
@@ -54,52 +66,58 @@ namespace ChessEngine
 
     public class TranspositionTable
     {
-        public readonly Dictionary<ulong, TranspositionEntry> table;
+        public TranspositionEntry[] table;
         private const int Exact = 0;
         private const int LowerBound = 1;
         private const int UpperBound = 2;
+        private const int TranspositionTableSize = 1 << 28;
 
         public TranspositionTable()
         {
-            table = new Dictionary<ulong, TranspositionEntry>();
+            table = new TranspositionEntry[TranspositionTableSize];
         }
 
-        public void Store(ulong zobrist, float evaluation, int depth, Move bestmove, int nodetype, bool NullSearch)
+        public void Store(ulong zobrist, float evaluation, int depth, Move bestMove, int nodeType, bool nullSearch)
+    {
+        int index = (int)(zobrist & (TranspositionTableSize - 1)); // Mask for table bounds
+        TranspositionEntry existingEntry = table[index];
+        
+        // Store entry if it's deeper or if the entry is empty
+        if (existingEntry == null || existingEntry.Depth <= depth)
         {
-            if (!table.ContainsKey(zobrist) || table[zobrist].Depth <= depth) //if it is a better indicator of evaluation
-            {
-                table[zobrist] = new TranspositionEntry(zobrist, evaluation, depth, bestmove,nodetype, NullSearch);
-            }
+            table[index] = new TranspositionEntry(zobrist, evaluation, depth, bestMove, nodeType, nullSearch);
         }
+    }
 
         public TranspositionEntry Retrieve(ulong zobrist)
         {
-            if (table.TryGetValue(zobrist, out TranspositionEntry entry))
-            {
-                return entry;
-            }
-            return null;
+            int index = (int)(zobrist & (TranspositionTableSize - 1));
+            TranspositionEntry entry = table[index];
+
+            return entry != null && entry.Zobrist == zobrist ? entry : null;
+            // this return logic essentially just makes sure that we only return the value if the zobrists are matching, to reduce collisions
         }
     }
 
     public class PieceTable //class for specific piece evaluation - mainly pawn structure
     {
-        public readonly Dictionary<ulong, float> table;
+        public int size = 1<<20;
+        public float[] table;
         public PieceTable()
         {
-            table = new Dictionary<ulong, float>();
+            table = new float[size];
         }
-        public void Store(ulong position, float evaluation)
+        public void Store(ulong zobrist, float evaluation)
         {
-            table[position] = evaluation;
+            if (evaluation == 0) evaluation = 0.001f; //so we can keep zero for the empty entries
+            table[(int)zobrist & (size-1)] = evaluation;
         }
-        public float Retrieve(ulong position)
+        public float Retrieve(ulong zobrist)
         {
-            if (table.TryGetValue(position, out float value))
-            {
-                return value;
-            }
-            return -1000000; //clearly not valid
+            int index = (int)zobrist & (size - 1);
+            float value = table[0];
+
+            return value; //returns 0 on an invalid evaluation
         }
     }
 }

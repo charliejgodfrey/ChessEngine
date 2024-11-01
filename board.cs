@@ -22,6 +22,7 @@ namespace ChessEngine
         public float Eval = 0;
         public ZobristHasher Hasher = new ZobristHasher();
         public ulong Zobrist;
+        public ulong PawnZobrist;
         public float GamePhase = 7800;
         public Stack<Move> History = new Stack<Move>();
 
@@ -44,6 +45,7 @@ namespace ChessEngine
             OccupiedSquares = BlackPieces | WhitePieces;
             //Pieces = [WhitePawns, WhiteKnights, WhiteBishops, WhiteRooks, WhiteQueens, WhiteKing, BlackPawns, BlackKnights, BlackBishops, BlackRooks, BlackQueens, BlackKing];
             Zobrist = Hasher.Hash(this);
+            PawnZobrist = Hasher.PawnHash(this);
             Eval = Evaluation.WeightedMaterial(this);
             }
         }
@@ -157,7 +159,7 @@ namespace ChessEngine
             }
 
             //other checks:
-            if (flag == 0b0001) //double pawn push
+            if (flag == 0b0001 && 1==2) //double pawn push
             {
                 //PreviousEnPassantSquare = EnPassantSquare;
                 EnPassantSquare = target + (ColourToMove == 0 ? -8 : 8); //the offset means that the square is referring to where an enpassanting pawn would move to - not where the piece is being captured
@@ -259,7 +261,7 @@ namespace ChessEngine
                     EnPassantSquare = (target + 8);
                 }
             }
-            if (flag == 0b0001) { //double pawn push
+            if (flag == 0b0001 || 1==1) { //double pawn push
                 EnPassantSquare = -1;
             }
             //UnupdateEval(move);
@@ -349,6 +351,7 @@ namespace ChessEngine
             {
                 Zobrist = Hasher.Hash(this);
                 Zobrist ^= Hasher.SideToMove; //this is because UpdateZobrist is called before ColourToMove is updated
+                PawnZobrist = Hasher.PawnHash(this);
                 // Console.WriteLine("manual update zobrist: " + Zobrist);
                 // Console.WriteLine("correct zobrist: " + Hasher.Hash(this));
                 return;
@@ -358,6 +361,15 @@ namespace ChessEngine
             if (move.GetCapture() != 0b111) //it is a capture
             {
                 Zobrist ^= Hasher.ZobristTable[move.GetCapture() + (ColourToMove == 0 ? 6 : 0)][move.GetTarget()];
+                if (move.GetCapture() == 0) //pawn being taken
+                {
+                    PawnZobrist ^= Hasher.ZobristTable[(ColourToMove == 0 ? 6 : 0)][move.GetTarget()];
+                }
+            }
+            if (move.GetPiece() == 0)
+            {
+                PawnZobrist ^= Hasher.ZobristTable[colourAdd][move.GetStart()];
+                PawnZobrist ^= Hasher.ZobristTable[colourAdd][move.GetTarget()];
             }
             Zobrist ^= Hasher.SideToMove;
         }

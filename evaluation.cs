@@ -23,14 +23,19 @@ namespace ChessEngine
 
         public static float Evaluate(Board board)
         {
-            float Material = WeightedMaterial(board);
-            //return Material;
-            (float WhiteMobility, ulong WhiteAttacks) = EvaluateMobility(board, 0);
-            (float BlackMobility, ulong BlackAttacks) = EvaluateMobility(board, 1);
+            (ulong WhitePawnAttacks, ulong BlackPawnAttacks) = PawnAttacks(board);
+            (float WhiteMobility, ulong WhiteAttacks, float WhiteGamePhase, float WhiteMiddleGameMaterial, float WhiteEndGameMaterial) = EvaluateMobility(board, 0, BlackPawnAttacks);
+            (float BlackMobility, ulong BlackAttacks, float BlackGamePhase, float BlackMiddleGameMaterial, float BlackEndGameMaterial) = EvaluateMobility(board, 1, BlackPawnAttacks);
+            (float PawnPhase, float PawnMiddleScore, float PawnEndScore) = PawnMaterial(board);
             float PawnStructure = EvaluatePawnStructure(board);
-            float Tempo = (board.ColourToMove*2 - 1);
-            return (float)(
-            20*Tempo + 
+            (float MiddleKingScore, float EndKingScore) = KingMaterial(board);
+            (float MiddleKingSafety, float EndKingSafety) = EvaluateKingSafety(board, WhiteAttacks, BlackAttacks);
+
+            board.GamePhase = WhiteGamePhase + BlackGamePhase + PawnPhase + 20000; //20000 for the kings;
+
+            float Material = (((WhiteMiddleGameMaterial-BlackMiddleGameMaterial + PawnMiddleScore + MiddleKingScore + MiddleKingSafety) * board.GamePhase) + (WhiteEndGameMaterial-BlackEndGameMaterial+PawnEndScore + EndKingSafety + EndKingScore) * (28000-board.GamePhase))/28000; //this is disgusting for efficiency
+
+            return (float)( 
             Material + 
             100*(WhiteMobility/(WhiteMobility+BlackMobility) - 0.5) +
             PawnStructure
@@ -38,32 +43,107 @@ namespace ChessEngine
             //return board.Eval;
         }
 
+        public static (float, float) EvaluateKingSafety(Board board, ulong WhiteAttacks, ulong BlackAttacks) //responsible for evaluating king safety
+        {
+            int WhiteKing = BitOperations.TrailingZeroCount(board.Pieces[5]);
+            int BlackKing = BitOperations.TrailingZeroCount(board.Pieces[11]);
+            //escape squares
+            int WhiteEscapeSquares = BitOperations.PopCount(PreComputeData.KingAttackBitboards[WhiteKing].GetData() & ~BlackAttacks);
+            int BlackEscapeSquares = BitOperations.PopCount(PreComputeData.KingAttackBitboards[BlackKing].GetData() & ~WhiteAttacks);
+
+            //pawn shield
+            int WhiteShield = BitOperations.PopCount(PreComputeData.KingShieldMasks[0,WhiteKing] & board.Pieces[0]);
+            int BlackShield = BitOperations.PopCount(PreComputeData.KingShieldMasks[1,BlackKing] & board.Pieces[6]);
+
+            //near open files
+            int WhiteKingFile = WhiteKing / 8;
+            int BlackKingFile = BlackKing / 8;
+            int WhiteOpens = 0;
+            int BlackOpens = 0;
+            
+            int PawnCount = BitOperations.PopCount((0x0101010101010101UL << (WhiteKingFile)) & (board.Pieces[0] | board.Pieces[6]));
+            WhiteOpens += PawnCount == 0 ? 30 : PawnCount == 1 ? 16 : 0;
+            if (WhiteKingFile != 7) //preventing wrap around
+            {
+                PawnCount = BitOperations.PopCount((0x0101010101010101UL << (WhiteKingFile + 1)) & (board.Pieces[0] | board.Pieces[6]));
+                WhiteOpens += PawnCount == 0 ? 15 : PawnCount == 1 ? 5 : 0;
+            }
+            if (WhiteKingFile != 0) //preventing wrap around
+            {
+                PawnCount = BitOperations.PopCount((0x0101010101010101UL << (WhiteKingFile - 1)) & (board.Pieces[0] | board.Pieces[6]));
+                WhiteOpens += PawnCount == 0 ? 15 : PawnCount == 1 ? 5 : 0;
+            }
+
+            PawnCount = BitOperations.PopCount((0x0101010101010101UL << (BlackKingFile)) & (board.Pieces[0] | board.Pieces[6]));
+            BlackOpens += PawnCount == 0 ? 30 : PawnCount == 1 ? 16 : 0;
+            if (BlackKingFile != 7) //preventing wrap around
+            {
+                PawnCount = BitOperations.PopCount((0x0101010101010101UL << (BlackKingFile + 1)) & (board.Pieces[0] | board.Pieces[6]));
+                BlackOpens += PawnCount == 0 ? 15 : PawnCount == 1 ? 5 : 0;
+            }
+            if (BlackKingFile != 0) //preventing wrap around
+            {
+                PawnCount = BitOperations.PopCount((0x0101010101010101UL << (BlackKingFile - 1)) & (board.Pieces[0] | board.Pieces[6]));
+                BlackOpens += PawnCount == 0 ? 15 : PawnCount == 1 ? 5 : 0;
+            }
+
+            //the stuff to do with piece proximity is calculated in the mobility function
+            float WhiteMiddleScore = -5*WhiteEscapeSquares + WhiteShield*10 + WhiteOpens;
+            float BlackMiddleScore = -5*BlackEscapeSquares + BlackShield*10 + BlackOpens;
+
+            float WhiteEndScore = -5*WhiteEscapeSquares; //king activity becomes much more important
+            float BlackEndScore = -5*BlackEscapeSquares; //but we don't want to get mated either
+
+
+            return (WhiteMiddleScore - BlackMiddleScore, WhiteEndScore-BlackEndScore);
+        }
+
+        public static (ulong, ulong) PawnAttacks(Board board)
+        {
+            ulong WhitePawnAttacks = (((board.Pieces[0] & NotA) << 7) | ((board.Pieces[0] & NotH) << 9));
+            ulong BlackPawnAttacks = (((board.Pieces[6] & NotA) << 7) | ((board.Pieces[6] & NotH) << 9));
+            return (WhitePawnAttacks, BlackPawnAttacks);
+        }
+
+        public static (float, float) KingMaterial(Board board)
+        {
+            int WhiteKing = BitOperations.TrailingZeroCount(board.Pieces[5]);
+            int BlackKing = BitOperations.TrailingZeroCount(board.Pieces[11]);
+
+            return (mg_tables[5][Flip[WhiteKing]] - mg_tables[5][BlackKing], eg_tables[5][Flip[WhiteKing]] - eg_tables[5][BlackKing]);
+        }
+
         public static float EvaluatePawnStructure(Board board)
         {
-            // float WhitePawns = PawnEvaluationTable.Retrieve(board.WhitePawns.GetData());
-            // float BlackPawns = PawnEvaluationTable.Retrieve(board.BlackPawns.GetData());
+            float PawnEvaluation = PawnEvaluationTable.Retrieve(board.PawnZobrist);
             
-            // if (WhitePawns == -1000000) //not in the table
-            // {
-            //     WhitePawns = EvaluatePawnStructure(board.WhitePawns, 0);
-            //     PawnEvaluationTable.Store(board.WhitePawns.GetData(), WhitePawns);
-            // }
-            // if (BlackPawns == -1000000) //not in the table
-            // {
-            //     BlackPawns = EvaluatePawnStructure(board.BlackPawns, 1);
-            //     PawnEvaluationTable.Store(board.BlackPawns.GetData(), BlackPawns);
-            // }
+            if (PawnEvaluation != 0) //not in the table
+            {
+                return PawnEvaluation;
+            }
             //should implement this but need to create a specialist zobrist just for a positions pawn structure
 
 
             int IsoPawns = IsolatedPawns(board.Pieces[0]) - IsolatedPawns(board.Pieces[6]);
             (int middle, int end) = PassedPawns(board);
             int BackPawns = BackwardsPawns(board);
+            int ProtectedPawns = PawnChains(board);
 
             float MiddleGameScore = IsoPawns*-5 + middle + BackPawns*-9;
             float EndGameScore = IsoPawns*-15 + end + BackPawns*-24;
+            float Evaluation = ((MiddleGameScore * board.GamePhase + EndGameScore * (28000 - board.GamePhase))/28000);
+            PawnEvaluationTable.Store(board.PawnZobrist, Evaluation);
 
-            return ((MiddleGameScore * board.GamePhase + EndGameScore * (28000 - board.GamePhase))/28000);
+            return Evaluation;
+        }
+
+        public static int PawnChains(Board board)
+        {
+            ulong WhitePawnAttacks = (((board.Pieces[0] & NotA) << 7) | ((board.Pieces[0] & NotH) << 9));
+            ulong BlackPawnAttacks = (((board.Pieces[6] & NotA) << 7) | ((board.Pieces[6] & NotH) << 9));
+
+            int ConnectedPawns = BitOperations.TrailingZeroCount(WhitePawnAttacks & board.Pieces[0]) - BitOperations.TrailingZeroCount(BlackPawnAttacks & board.Pieces[6]);
+            return ConnectedPawns;
         }
 
         public static int BackwardsPawns(Board board)
@@ -123,21 +203,79 @@ namespace ChessEngine
             return (MiddleGameScore, EndGameScore);
         }
 
-        public static (float, ulong) EvaluateMobility(Board board, int Player)
+        public static (float, float, float) PawnMaterial(Board board) //returns the game phase from pawns and the weighted material of just pawns
         {
+            float MiddleScore = 0; //stuff for the weighted material
+            float EndScore = 0;
+            float NewGamePhase = 0;
+
+            ulong Pawns = board.Pieces[0];
+            while (Pawns > 0) //for each white pawn
+            {
+                int i = BitOperations.TrailingZeroCount(Pawns);
+                Pawns &= ~(1UL << i);
+                NewGamePhase += MaterialValues[0]; //stuff for the weighted material
+                MiddleScore += MaterialValues[0];
+                EndScore += MaterialValues[0];
+                MiddleScore += mg_tables[0][Evaluation.Flip[i]];
+                EndScore += eg_tables[0][Evaluation.Flip[i]];
+            }
+            Pawns = board.Pieces[6];
+            while (Pawns > 0) //for each white pawn
+            {
+                int i = BitOperations.TrailingZeroCount(Pawns);
+                Pawns &= ~(1UL << i);
+                NewGamePhase += MaterialValues[0]; //stuff for the weighted material
+                MiddleScore -= MaterialValues[0];
+                EndScore -= MaterialValues[0];
+                MiddleScore -= mg_tables[0][i];
+                EndScore -= eg_tables[0][i];
+            }
+
+            return (NewGamePhase, MiddleScore, EndScore);
+        }
+
+        public static (float, ulong, float, float, float) EvaluateMobility(Board board, int Player, ulong PawnAttacks)
+        {
+            float NewGamePhase = 0;
+            float MiddleScore = 0; //stuff for the weighted material
+            float EndScore = 0;
+
+            ulong Undefended = ~PawnAttacks; //squares not attacked by opponents pawns
             ulong AttackedSquares = 0UL;
             int ColourAdd = Player * 6;
             ulong FriendlyPieces = (Player == 0 ? board.WhitePieces : board.BlackPieces);
             int KnightMoves = 0;
             ulong Knights = board.Pieces[ColourAdd+1];
+            float OpenFileScore = 0;
+            float KingProximityDefense = 0;
+            float KingProximityAttack = 0;
+            int FriendlyKing = BitOperations.TrailingZeroCount(board.Pieces[5+ColourAdd]);
+            int EnemyKing = BitOperations.TrailingZeroCount(board.Pieces[11 - ColourAdd]);
             while (Knights > 0) //for each knight
             {
                 int square = BitOperations.TrailingZeroCount(Knights);
                 ulong Attacks = PreComputeData.KnightAttackBitboards[square].GetData();
                 AttackedSquares |= Attacks;
                 Attacks &= ~FriendlyPieces;
-                KnightMoves += BitOperations.PopCount(Attacks);
+                KnightMoves += 2*BitOperations.PopCount(Attacks & Undefended);
                 Knights &= ~(1UL << square);
+
+                KingProximityDefense += distance(square, FriendlyKing) < 3 ? 5 : 0;
+                KingProximityAttack += distance(square, EnemyKing) < 4 ? 8 : 0;
+
+                NewGamePhase += MaterialValues[1]; //stuff for the weighted material
+                MiddleScore += MaterialValues[1];
+                EndScore += MaterialValues[1];
+                if (Player == 0)
+                {
+                    MiddleScore += mg_tables[1][Evaluation.Flip[square]];
+                    EndScore += eg_tables[1][Evaluation.Flip[square]];
+                } else 
+                {
+                    MiddleScore += mg_tables[1][square];
+                    EndScore += eg_tables[1][square];
+                }
             }
             
             int BishopMoves = 0;
@@ -148,8 +286,24 @@ namespace ChessEngine
                 ulong Attacks = MoveGenerator.GenerateBishopAttacks(board, square);
                 AttackedSquares |= Attacks;
                 Attacks &= ~FriendlyPieces;
-                BishopMoves += BitOperations.PopCount(Attacks);
+                BishopMoves += BitOperations.PopCount(Attacks) + BitOperations.PopCount(Attacks&Undefended); //reduced bonus for when the seen squares are defended by a pawn 
                 Bishops &= ~(1UL << square);
+
+                KingProximityDefense += distance(square, FriendlyKing) < 3 ? 5 : 0;
+                KingProximityAttack += distance(square, EnemyKing) < 4 ? 8 : 0;
+
+                NewGamePhase += MaterialValues[2]; //stuff for the weighted material
+                MiddleScore += MaterialValues[2];
+                EndScore += MaterialValues[2];
+                if (Player == 0)
+                {
+                    MiddleScore += mg_tables[2][Evaluation.Flip[square]];
+                    EndScore += eg_tables[2][Evaluation.Flip[square]];
+                } else 
+                {
+                    MiddleScore += mg_tables[2][square];
+                    EndScore += eg_tables[2][square];
+                }
             }
 
             int RookMoves = 0;
@@ -160,8 +314,27 @@ namespace ChessEngine
                 ulong Attacks = MoveGenerator.GenerateRookAttacks(board, square);
                 AttackedSquares |= Attacks;
                 Attacks &= ~FriendlyPieces;
-                RookMoves += BitOperations.PopCount(Attacks);
+                RookMoves += BitOperations.PopCount(Attacks) + BitOperations.PopCount(Attacks&Undefended);
                 Rooks &= ~(1UL << square);
+
+                KingProximityDefense += distance(square, FriendlyKing) < 3 ? 4 : 0;
+                KingProximityAttack += distance(square, EnemyKing) < 4 ? 15 : 0;
+
+                int PawnsOnFile = BitOperations.PopCount((board.Pieces[0] | board.Pieces[6]) & (0x0101010101010101UL << (square & 8)));
+                OpenFileScore += PawnsOnFile == 0 ? 40 : PawnsOnFile == 1 ? 18 : 0;
+
+                NewGamePhase += MaterialValues[3]; //stuff for the weighted material
+                MiddleScore += MaterialValues[3];
+                EndScore += MaterialValues[3];
+                if (Player == 0)
+                {
+                    MiddleScore += mg_tables[3][Evaluation.Flip[square]];
+                    EndScore += eg_tables[3][Evaluation.Flip[square]];
+                } else 
+                {
+                    MiddleScore += mg_tables[3][square];
+                    EndScore += eg_tables[3][square];
+                }
             }
 
             int QueenMoves = 0;
@@ -172,19 +345,45 @@ namespace ChessEngine
                 ulong Attacks = (MoveGenerator.GenerateBishopAttacks(board, square) | MoveGenerator.GenerateRookAttacks(board, square));
                 AttackedSquares |= Attacks;
                 Attacks &= ~FriendlyPieces;
-                QueenMoves += BitOperations.PopCount(Attacks);
+                QueenMoves += BitOperations.PopCount(Attacks) + BitOperations.PopCount(Attacks&Undefended);
                 Queens &= ~(1UL << square);
+
+                KingProximityDefense += distance(square, FriendlyKing) < 3 ? 4 : 0;
+                KingProximityAttack += distance(square, EnemyKing) < 4 ? 25 : 0;
+
+                NewGamePhase += MaterialValues[4]; //stuff for the weighted material
+                MiddleScore += MaterialValues[4];
+                EndScore += MaterialValues[4];
+                if (Player == 0)
+                {
+                    MiddleScore += mg_tables[4][Evaluation.Flip[square]];
+                    EndScore += eg_tables[4][Evaluation.Flip[square]];
+                } else 
+                {
+                    MiddleScore += mg_tables[4][square];
+                    EndScore += eg_tables[4][square];
+                }
             }
+
+            AttackedSquares |= PreComputeData.KingAttackBitboards[BitOperations.TrailingZeroCount(board.Pieces[ColourAdd+5])].GetData(); //adds the king attacked squares to the attacked squares
 
             ulong EastCapture = ((board.Pieces[ColourAdd] << 9) & 0x7F7F7F7F7F7F7F7F); //this essentially checks there is a piece that can be captured and accounts for overflow stuff
             ulong WestCapture = ((board.Pieces[ColourAdd] << 7) & 0xFEFEFEFEFEFEFEF); //does the same thing for the other direction
             ulong ForwardMoves = ((board.Pieces[ColourAdd] << 8) & ~(Player == 0 ? board.BlackPieces : board.WhitePieces));
             int PawnMoves = BitOperations.PopCount(ForwardMoves);
             AttackedSquares |= (WestCapture | EastCapture);
-            int CentreControl = BitOperations.PopCount(AttackedSquares & 0x0000003C3C000000);
-            float MiddleGameScore = (float)(2*(KnightMoves + BishopMoves + 2*CentreControl) + PawnMoves + 0.5*(RookMoves) + QueenMoves); //weighted more towards minor piece mobility
-            float EndGameScore = (float)(KnightMoves + BishopMoves + CentreControl + 2 * (PawnMoves + RookMoves + QueenMoves));
-            return ((MiddleGameScore * board.GamePhase + EndGameScore * (28000 - board.GamePhase))/28000, AttackedSquares); //interpolated depending on material count
+
+            
+            int CentreControl = 2*BitOperations.PopCount(AttackedSquares & 0x0000003C3C000000);
+            float MiddleGameScore = (float)(2*(KnightMoves + BishopMoves + 2*CentreControl) + PawnMoves + 0.5*(RookMoves) + QueenMoves + OpenFileScore); //weighted more towards minor piece mobility
+            float EndGameScore = (float)(KnightMoves + BishopMoves + CentreControl + 2 * (PawnMoves + RookMoves + QueenMoves) + OpenFileScore/1.5f);
+            return ((MiddleGameScore * board.GamePhase + EndGameScore * (28000 - board.GamePhase))/28000, AttackedSquares, NewGamePhase, MiddleScore, EndScore); //interpolated depending on material count
+        }
+
+        public static int distance(int index1, int index2)
+        {
+            int differ = Math.Abs(index1 - index2);
+            return (differ / 8) + (differ % 8);
         }
 
         public static float Material(Board board)
