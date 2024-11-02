@@ -54,8 +54,8 @@ namespace ChessEngine
                 if (i / 8 != 0)
                 {
                     BlackMask |= 1UL << (i-8);
-                    if (i % 8 != 0) WhiteMask |= 1UL << (i-9);
-                    if (i % 8 != 0) WhiteMask |= 1UL << (i-7);
+                    if (i % 8 != 0) BlackMask |= 1UL << (i-9);
+                    if (i % 8 != 7) BlackMask |= 1UL << (i-7);
                 }
 
                 KingShieldMasks[0,i] = WhiteMask;

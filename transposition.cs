@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 namespace ChessEngine
 {
     public class ZobristHasher
@@ -13,7 +14,9 @@ namespace ChessEngine
                 ZobristTable[p] = new ulong[64];
                 for (int i = 0; i < 64; i++)
                 {
-                    ZobristTable[p][i] = (ulong)(rand.NextDouble() * ulong.MaxValue); //generates a random ulong
+                    byte[] buffer = new byte[8];
+                    RandomNumberGenerator.Fill(buffer);
+                    ZobristTable[p][i] = BitConverter.ToUInt64(buffer, 0); //generates a random ulong
                 }
             }
         }
@@ -50,10 +53,10 @@ namespace ChessEngine
         public float Evaluation;
         public int Depth;
         public int NodeType;
-        public Move[] LegalMoves;
         public Move BestMove;
         public bool NullSearch;
-        public TranspositionEntry(ulong zobrist, float evaluation, int depth, Move bestmove, int nodetype, bool NullSearch)
+        public int Age;
+        public TranspositionEntry(ulong zobrist, float evaluation, int depth, Move bestmove, int nodetype, bool NullSearch, int age)
         {
             Zobrist = zobrist;
             Evaluation = evaluation;
@@ -61,6 +64,7 @@ namespace ChessEngine
             BestMove = bestmove;
             NodeType = nodetype;
             NullSearch = NullSearch;
+            Age = age;
         }
     }
 
@@ -70,38 +74,54 @@ namespace ChessEngine
         private const int Exact = 0;
         private const int LowerBound = 1;
         private const int UpperBound = 2;
-        private const int TranspositionTableSize = 1 << 28;
+        private const ulong TranspositionTableSize = (1UL << 10);
 
         public TranspositionTable()
         {
             table = new TranspositionEntry[TranspositionTableSize];
         }
 
-        public void Store(ulong zobrist, float evaluation, int depth, Move bestMove, int nodeType, bool nullSearch)
-    {
-        int index = (int)(zobrist & (TranspositionTableSize - 1)); // Mask for table bounds
-        TranspositionEntry existingEntry = table[index];
-        
-        // Store entry if it's deeper or if the entry is empty
-        if (existingEntry == null || existingEntry.Depth <= depth)
+        public void Store(ulong zobrist, float evaluation, int depth, Move bestMove, int nodeType, bool nullSearch, int age)
         {
-            table[index] = new TranspositionEntry(zobrist, evaluation, depth, bestMove, nodeType, nullSearch);
+            //return;
+            ulong index =(ulong)(zobrist & (TranspositionTableSize-1)); // Mask for table bounds
+            //if (index >= TranspositionTableSize)Console.WriteLine("we've got a problem");
+            TranspositionEntry existingEntry = table[index];
+            
+            // Store entry if it's deeper or if the entry is empty or if the existing entry is from many moves ago
+            if (existingEntry == null || existingEntry.Depth <= depth || (existingEntry.Depth + existingEntry.Age < depth+age))
+            {
+                table[index] = new TranspositionEntry(zobrist, evaluation, depth, bestMove, nodeType, nullSearch, age);
+            }
         }
-    }
 
         public TranspositionEntry Retrieve(ulong zobrist)
         {
-            int index = (int)(zobrist & (TranspositionTableSize - 1));
+            //return null;
+            ulong index = (ulong)(zobrist & (TranspositionTableSize - 1));
+            //if (index >= TranspositionTableSize)Console.WriteLine("we've got a problem");
             TranspositionEntry entry = table[index];
 
             return entry != null && entry.Zobrist == zobrist ? entry : null;
             // this return logic essentially just makes sure that we only return the value if the zobrists are matching, to reduce collisions
         }
+
+        public int PercentageFull()
+        {
+            int full = 0;
+            for (ulong i = 0; i < TranspositionTableSize; i++)
+            {
+                if (table[i] != null) {
+                    full++;
+                }
+            }
+            return full;
+        }
     }
 
     public class PieceTable //class for specific piece evaluation - mainly pawn structure
     {
-        public int size = 1<<20;
+        public int size = 1<<10;
         public float[] table;
         public PieceTable()
         {
@@ -114,6 +134,7 @@ namespace ChessEngine
         }
         public float Retrieve(ulong zobrist)
         {
+            //return 0f;
             int index = (int)zobrist & (size - 1);
             float value = table[0];
 

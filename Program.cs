@@ -17,29 +17,29 @@ namespace ChessEngine
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             Test.LoadTestPositions();
-            board = new Board("1r3rk1/6p1/p1pqp1B1/3p2BP/3P2P1/P1P5/2Q3K1/2R5");
+            board = new Board(Test.FenDataBase[16]);
             board.PrintBoard();
             //board.Zobrist = board.Hasher.Hash(board);
             board.Eval = Evaluation.Evaluate(board);
-            //for (int i = 0; i < 6; i++) Console.WriteLine(Search.Perft(i,board));
+            //for (int i = 0; i < 7; i++) Console.WriteLine(Search.Perft(i,board));
 
             //after program has been loaded
 
             while (1==1)
             {
-                Move move = GetUserMove(board);
-                board.MakeMove(move);
-                board.PrintBoard();
-
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 17, TTable);
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 12, TTable);
                 board.MakeMove(BestMove);
                 Console.WriteLine(FormatMove(BestMove));
                 board.PrintBoard();
+                Console.WriteLine("tranposition table usage: " + (TTable.PercentageFull()) + " out of " + (1UL << 20));
+
+                // Move move = GetUserMove(board);
+                // board.MakeMove(move);
+                // board.PrintBoard();
+
 
 
                 // Console.WriteLine("tranpositions: " + Search.Transpositions);
-                // Console.WriteLine(board.Zobrist);
-                // Console.WriteLine(board.Hasher.Hash(board));
                
                 // Move[] moves = new Move[3];
                 // moves[0] = move;
