@@ -35,7 +35,7 @@ namespace ChessEngine
         public static (Move, float, Move[]) AlphaBeta(Board board, int Depth, TranspositionTable TTable, Move PreviousMove, float Alpha = -10000000, float Beta = 10000000)
         {
             //Console.WriteLine("zobrist: " + board.Zobrist);
-            TranspositionEntry entry = TTable.Retrieve(board.Zobrist);
+            TranspositionEntry entry = null;//TTable.Retrieve(board.Zobrist);
             Move HashMove = NullMove;
 
             if (entry != null) //transposition table stuff
@@ -77,7 +77,7 @@ namespace ChessEngine
             if (Depth <= 0)
             {
                 float eval = QuiescienceSearch(board, TTable, Alpha, Beta);
-                TTable.Store(board.Zobrist, eval, 0, NullMove,0,false, board.MoveNumber);
+                //TTable.Store(board.Zobrist, eval, 0, NullMove,0,false, board.MoveNumber);
                 return (NullMove, eval, EmptyVariation);
             }
 
@@ -126,7 +126,7 @@ namespace ChessEngine
                 float Score;
                 Move[] PV;
 
-                if (i == 0 || Depth < 2) //what it thinks the best move is 
+                if (i == 0 || Depth < 2 || 1==1) //what it thinks the best move is 
                 {
                     (TopMove, Score, PV) = AlphaBeta(board, Depth - 1 + extension, TTable, Moves[i], -Beta, -Alpha); //search at full depth
                 } else {
@@ -179,7 +179,7 @@ namespace ChessEngine
         public static float QuiescienceSearch(Board board, TranspositionTable TTable, float Alpha = -1000000, float Beta = 1000000)
         {
             NodesEvaluated++;
-            TranspositionEntry entry = TTable.Retrieve(board.Zobrist);
+            TranspositionEntry entry = null;//TTable.Retrieve(board.Zobrist);
             Move HashMove = NullMove;
             if (entry != null) 
             {

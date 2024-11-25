@@ -17,7 +17,7 @@ namespace ChessEngine
             Evaluation.InitializeKillerMoves();
             board.Eval = Evaluation.WeightedMaterial(board);
             Test.LoadTestPositions();
-            board = new Board(Test.FenDataBase[16]);
+            //board = new Board(Test.FenDataBase[16]);
             board.PrintBoard();
             //board.Zobrist = board.Hasher.Hash(board);
             board.Eval = Evaluation.Evaluate(board);
@@ -27,7 +27,7 @@ namespace ChessEngine
 
             while (1==1)
             {
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 12, TTable);
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 14, TTable);
                 board.MakeMove(BestMove);
                 Console.WriteLine(FormatMove(BestMove));
                 board.PrintBoard();
