@@ -27,7 +27,7 @@ namespace ChessEngine
 
             while (1==1)
             {
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 14, TTable);
+                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 7, TTable);
                 board.MakeMove(BestMove);
                 Console.WriteLine(FormatMove(BestMove));
                 board.PrintBoard();
