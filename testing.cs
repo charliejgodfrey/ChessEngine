@@ -3,8 +3,47 @@ namespace ChessEngine
     public static class Test 
     {
         public static Position[] TestPositions = new Position[100];
-        public static string[] FenDataBase = new string[100];
+        public static string[] FenDataBase;
+        public static float[] FenEvaluations;
 
+        public static double EvaluationTest(int positions, int depth)
+        {
+            double[] error = new double[depth+1];
+            Console.Write("Percentage Complete: 0%");
+            for (int i = 0; i < positions; i++)
+            {
+                Board board = new Board(FenDataBase[i]);
+                if (depth == 0) //just the raw evaluation function
+                {
+                    error[0] += Math.Abs(Math.Clamp(FenEvaluations[i], -1000, 1000) - Math.Floor(Evaluation.Evaluate(board)));
+                } else
+                {
+                    (Move BestMove, float Eval, Move[] PV, float[] Evaluations) = Search.IterativeDeepeningSearch(board, depth, new TranspositionTable());
+                    // if (Math.Abs(Math.Clamp(FenEvaluations[i], -1000, 1000) - Math.Clamp(Eval, -1000, 1000)) > 800)
+                    // {
+                    //     Console.WriteLine(FenDataBase[i]);
+                    //     Console.WriteLine("turn: " + (board.ColourToMove == 0 ? "white" : "black"));
+                    //     Console.WriteLine("true: " + FenEvaluations[i] + " kronos: " + Eval);
+                    // }
+                    for (int d = 0; d <= depth; d++)
+                    {
+                        error[d] += (Math.Abs(Math.Clamp(FenEvaluations[i], -1000, 1000) - Evaluations[d])); //adds on the positive error
+                    }
+                }
+                double PercentageComplete = Math.Floor(100*(float)i/(float)positions);
+                for (int p=0;p<24;p++)Console.Write("\b");
+                Console.Write("Percentage Complete: " + PercentageComplete + "%");
+            }
+            for (int p=0;p<24;p++)Console.Write("\b");
+            Console.Write("Percentage Complete: 100%");
+            Console.WriteLine("\nComplete");
+            for (int d = 0; d <= depth; d++)
+            {
+                Console.WriteLine("Average Error At Depth " + d + ": " + (error[d]/positions));
+            }
+            Console.WriteLine("Total Cumulative Error: " + error[0]);
+            return error[0] / positions; //returns mean error
+        }
         public static void PerftTest(int depth, Position position)
         {
             Board TestBoard = new Board(position.Fen);
@@ -30,7 +69,7 @@ namespace ChessEngine
                 board.PrintBoard();
                 Console.WriteLine("static eval: " + Evaluation.Evaluate(board));
                 Console.WriteLine("weighted material: " + Evaluation.WeightedMaterial(board));
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 5, new TranspositionTable());
+                (Move BestMove, float Eval, Move[] PV, float[] evals) = Search.IterativeDeepeningSearch(board, 5, new TranspositionTable());
                 Console.WriteLine("depth eval: " + Eval);
             }
         }
@@ -48,38 +87,18 @@ namespace ChessEngine
 
         public static void LoadFenDataBase()
         {
-            FenDataBase[0] = "rnbqkb1r/ppppp1pp/5n2/5p2/2PP4/8/PP2PPPP/RNBQKBNR w"; //first 10 are opening positions
-            FenDataBase[1] = "rnbqkbnr/ppp2ppp/8/3pp3/2P5/6P1/PP1PPP1P/RNBQKBNR w";
-            FenDataBase[2] = "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w";
-            FenDataBase[3] = "r1bqkbnr/pp1ppppp/2n5/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w";
-            FenDataBase[4] = "rnbqkbnr/pp2pppp/8/2pp4/8/5NP1/PPPPPP1P/RNBQKB1R w";
-            FenDataBase[5] = "rnbqkbnr/pp2pppp/8/2pp4/3P1B2/8/PPP1PPPP/RN1QKBNR w";
-            FenDataBase[6] = "rnbqkb1r/ppp1pppp/5n2/3p4/3P1B2/5P2/PPP1P1PP/RN1QKBNR w";
-            FenDataBase[7] = "rnbqk1nr/ppp2ppp/4p3/3p4/1bPP4/2N5/PP2PPPP/R1BQKBNR w";
-            FenDataBase[8] = "rnbqkb1r/ppp1pp1p/3p1np1/8/3PP3/2N5/PPP2PPP/R1BQKBNR w";
-            FenDataBase[9] = "r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w";
-
-            FenDataBase[10] = "r1bq1rk1/ppp1bppp/2n2n2/4p3/3pP3/P2P1N2/1PPBBPPP/RN1Q1RK1 w"; //middle game positions
-            FenDataBase[11] = "r1bq1rk1/2p2pbp/ppnppnp1/8/P2PP3/2N1BN1P/1PP1BPP1/R2Q1RK1 w";
-            FenDataBase[12] = "2r1k2r/qp1bbp2/p2ppp2/7p/3NP2P/6P1/PPP2PB1/R2Q1RK1 w";
-            FenDataBase[13] = "r1b1rnk1/pp2qppp/2p5/3p3n/3P4/2NBPP2/PPQ1N1PP/R4RK1 w";
-            FenDataBase[14] = "r1bqk1nr/pp2ppbp/3p2p1/2p5/2BnP3/2N2N2/PPPP1PPP/R1BQ1RK1 w";
-            FenDataBase[15] = "r1br2k1/pp2qpp1/5n1p/2b5/1n2P3/2N2NP1/PP2PPBP/RQB2RK1 w";
-            FenDataBase[16] = "r1bq1rk1/ppp1n1bp/3p1n2/2PPp1p1/4Pp2/2NN1P2/PP1BB1PP/R2Q1RK1 w";
-            FenDataBase[17] = "1r1qr1k1/ppp2pbp/3pb1p1/4n3/2P5/1PN3P1/PB1QPPBP/3R1RK1 w";
-            FenDataBase[18] = "2kr1b1r/ppqn1p2/2p1p1np/3pPbp1/3P4/1N1NB3/PPP1BPPP/R2Q1RK1 w";
-            FenDataBase[19] = "r3k2r/pp3pp1/2nqpn1p/3p1b2/2pP4/2P1PN2/PP1NBPPP/R2Q1RK1 w";
-
-            FenDataBase[20] = "2k5/5p2/3Pn3/1B2Pp1p/7P/4K1P1/8/8 w"; //endgame positions
-            FenDataBase[21] = "1r6/6p1/b4pk1/P7/1B3K2/5P2/6P1/7R w";
-            FenDataBase[22] = "4r3/8/p7/1p1pk1p1/3N2b1/PBP3P1/1P3K2/8 w";
-            FenDataBase[23] = "8/4pp2/4k1p1/7p/P4R1P/r4PP1/4PK2/8 w";
-            FenDataBase[24] = "6k1/1p3pp1/p6p/8/4r3/7P/PP3PP1/2R3K1 w";
-            FenDataBase[25] = "8/R4ppk/1p2b2p/8/P3N1P1/5PK1/r5P1/8 w";
-            FenDataBase[26] = "4r3/2k5/2nRp1p1/p1p2p1p/K1P2P1P/1PB3P1/1P6/8 w";
-            FenDataBase[27] = "4r3/r4k2/pR4p1/4P1Bp/2p1KP1P/P1P5/6P1/8 w";
-            FenDataBase[28] = "3n1k2/4b1p1/5p1p/p7/P3P3/2pN1PP1/1R2K2P/8 w";
-            FenDataBase[29] = "8/3n3p/1pKBk1p1/2p1p1P1/2P4P/1P6/5P2/8 w";
+            string filePath = "ChessPositionEvaluationData.txt";
+            string[] lines = File.ReadAllLines(filePath);
+            FenDataBase = new string[lines.Length];
+            FenEvaluations = new float[lines.Length];
+            
+            for (int i = 0; i < lines.Length; i+=2)
+            {
+                FenDataBase[i/2] = lines[i];
+                FenEvaluations[i/2] = lines[i+1].Contains('#') ? ((lines[i+1].Contains('+') ? 1000 : -1000)) : float.Parse(lines[i+1]);
+                if (lines[i+1].Contains('#')) Console.WriteLine(i);
+            }
+            Console.WriteLine("Successfully loaded " + (lines.Length/2) + " positions");
         }
     }
 

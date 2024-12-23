@@ -8,7 +8,7 @@ namespace ChessEngine
 {
     public class Board
     { 
-        public const string DefaultFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"; //this is the default chess starting position
+        public const string DefaultFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq";  //this is the default chess starting position
 
         public int ColourToMove = 0; // 0 for white 1 for black
         public int EnPassantSquare;
@@ -24,7 +24,9 @@ namespace ChessEngine
         public ulong Zobrist;
         public ulong PawnZobrist;
         public float GamePhase = 7800;
-        public Stack<Move> History = new Stack<Move>();
+        public Stack<ulong> Threefold = new Stack<ulong>();
+        public Stack<GameState> RestoreInformation = new Stack<GameState>(); //stores things like Enpassant data and castling rights which cannot be determined simply from the unmove
+        public ulong NextPositionForThreefold;
 
 
 
@@ -47,7 +49,19 @@ namespace ChessEngine
             Zobrist = Hasher.Hash(this);
             PawnZobrist = Hasher.PawnHash(this);
             Eval = Evaluation.WeightedMaterial(this);
+            NextPositionForThreefold = Zobrist;
             }
+        }
+
+        public (bool, bool) IsCheckMate() //checks if the current player is in checkmate
+        {
+            (bool Check, Move[] Moves) = MoveGenerator.GenerateMoves(this);
+            if (Moves[0].GetData() == 0 && Check)
+            {
+                return (true, false); //checkmate
+            }
+            if (Moves[0].GetData() == 0 && !Check) return (false, true); //stalemate
+            return (false, false);
         }
 
         public int GetPiece(int square, int Colour) //7 indicates that it isn't a capture
@@ -80,7 +94,14 @@ namespace ChessEngine
         {
             MoveNumber++;
             ColourToMove = (ColourToMove == 0 ? 1 : 0);
-            PreviousEnPassantSquare = EnPassantSquare;
+            RestoreInformation.Push(new GameState
+            {
+                WhiteShortCastle = this.WhiteShortCastle,
+                WhiteLongCastle = this.WhiteLongCastle,
+                BlackShortCastle = this.BlackShortCastle,
+                BlackLongCastle = this.BlackLongCastle,
+                EnPassantSquare = this.EnPassantSquare
+            });
             EnPassantSquare = -1;
             Zobrist ^= Hasher.SideToMove;
         }
@@ -89,42 +110,50 @@ namespace ChessEngine
         {
             MoveNumber--;
             ColourToMove = (ColourToMove == 0 ? 1 : 0);
-            EnPassantSquare = PreviousEnPassantSquare;
-            PreviousEnPassantSquare = -1;
+            GameState PreviousState = RestoreInformation.Pop();
+            EnPassantSquare = PreviousState.EnPassantSquare;
+            //don't restore castling because null moves don't change castling rights
             Zobrist ^= Hasher.SideToMove;
         }
 
         public void MakeMove(Move move) 
         {
             MoveNumber++;
-            //History.Push(move);
-            if (move.GetCapture() == 5)
-            {
-                ColourToMove = (ColourToMove == 0 ? 1 : 0);
-                Console.WriteLine(MoveGenerator.InCheck(this, ColourToMove));
-                ColourToMove = (ColourToMove == 0 ? 1 : 0);
+            // if (move.GetCapture() == 5)
+            // {
+            //     ColourToMove = (ColourToMove == 0 ? 1 : 0);
+            //     Console.WriteLine(MoveGenerator.InCheck(this, ColourToMove));
+            //     ColourToMove = (ColourToMove == 0 ? 1 : 0);
 
-                move.PrintMove();
-                PrintBoard();
-                //OccupiedSquares.PrintData();
-                for (int i = 0; i < History.Count(); i++) {
-                    //History.Pop().PrintMove();
+            //     move.PrintMove();
+            //     PrintBoard();
+            // }
+
+            if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
+            {
+                this.Castle((move.GetFlag() == 0b0010) ? 1 : 2);
+                UpdateEval(move);
+                UpdateZobrist(move);    
+                ColourToMove = (ColourToMove == 0 ? 1 : 0);
+                return;
+            }
+            if (move.GetPiece() == 5) //removing castling rights
+            {
+                if (this.ColourToMove == 0) {
+                    this.WhiteShortCastle = false;
+                    this.WhiteLongCastle = false;
+                } else {
+                    this.BlackShortCastle = false;
+                    this.BlackLongCastle = false;
                 }
             }
 
-            // if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
-            // {
-            //     this.Castle((move.GetFlag() == 0b0010) ? 1 : 2);
-            //     UpdateEval(move);
-            //     UpdateZobrist(move);    
-            //     ColourToMove = (ColourToMove == 0 ? 1 : 0);
-            //     return;
-            // }
             int start = move.GetStart();
             int target = move.GetTarget();
             int piece = move.GetPiece();
             int flag = move.GetFlag();
             int capture = move.GetCapture();
+
             OccupiedSquares &= ~(1UL << start); //adjusts the occupied bitboard
             OccupiedSquares |= 1UL << target;
 
@@ -159,12 +188,6 @@ namespace ChessEngine
             }
 
             //other checks:
-            if (flag == 0b0001) //double pawn push
-            {
-                //PreviousEnPassantSquare = EnPassantSquare;
-                EnPassantSquare = target + (ColourToMove == 0 ? -8 : 8); //the offset means that the square is referring to where an enpassanting pawn would move to - not where the piece is being captured
-            } 
-            else EnPassantSquare = -1;
             if (flag == 0b0101) //en passant capture
             {
                 if (ColourToMove == 0) {
@@ -179,6 +202,12 @@ namespace ChessEngine
                 }
                 EnPassantSquare = -1;
             }
+
+            if (flag == 0b0001) //double pawn push
+            {
+                EnPassantSquare = target + (ColourToMove == 0 ? -8 : 8); //the offset means that the square is referring to where an enpassanting pawn would move to - not where the piece is being captured
+            } 
+            else EnPassantSquare = -1;
             if (flag >= 0b1000) //promotion
             {
                 Pieces[(flag & 0b0011) + (ColourToMove == 0 ? 1 : 7)] |= 1UL << target; //promotion piece bitboard
@@ -188,25 +217,37 @@ namespace ChessEngine
             //UpdateEval(move);
             UpdateZobrist(move);
             ColourToMove = (ColourToMove == 0 ? 1 : 0);
+
+            Threefold.Push(NextPositionForThreefold);
+            NextPositionForThreefold = Zobrist;
+
+            RestoreInformation.Push(new GameState
+            {
+                WhiteShortCastle = this.WhiteShortCastle,
+                WhiteLongCastle = this.WhiteLongCastle,
+                BlackShortCastle = this.BlackShortCastle,
+                BlackLongCastle = this.BlackLongCastle,
+                EnPassantSquare = -1//this.EnPassantSquare
+            }); //remember the unrestorable stuff about the position
+            EnPassantSquare = -1;
         }
 
         public void UnmakeMove(Move move) //add castling, en passant
         {
             MoveNumber--;
-            //History.Pop();
             int start = move.GetStart();
             int target = move.GetTarget();
             int piece = move.GetPiece();
             int flag = move.GetFlag();
             int capture = move.GetCapture();
-            // if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
-            // {
-            //     this.Uncastle((move.GetFlag() == 0b0010) ? 1 : 2);
-            //     UpdateEval(move);
-            //     UpdateZobrist(move);
-            //     ColourToMove = (ColourToMove == 0 ? 1 : 0); //because the zobrist is made from scratch including a move change    
-            //     return;
-            // }
+            if ((move.GetFlag() & 0b1110) == 0b0010) //a castling move
+            {
+                this.Uncastle((move.GetFlag() == 0b0010) ? 1 : 2);
+                UpdateEval(move);
+                UpdateZobrist(move);
+                ColourToMove = (ColourToMove == 0 ? 1 : 0); //because the zobrist is made from scratch including a move change    
+                return;
+            }
             if (ColourToMove == 1) //white unmaking the unmove
             {
                 WhitePieces |= (1UL << start);
@@ -232,7 +273,7 @@ namespace ChessEngine
                     Pieces[6] |= (1UL << (target - 8));
                     BlackPieces |= (1UL << (target - 8));
                     OccupiedSquares |= (1UL << (target - 8));
-                    EnPassantSquare = target - 8;
+                    //EnPassantSquare = target - 8;
                 }
             } else {
                 BlackPieces |= (1UL << start);
@@ -258,12 +299,12 @@ namespace ChessEngine
                     Pieces[0] |= (1UL << (target + 8));
                     WhitePieces |= (1UL << (target + 8));
                     OccupiedSquares |= (1UL << (target + 8));
-                    EnPassantSquare = (target + 8);
+                    //EnPassantSquare = (target + 8);
                 }
             }
-            if (flag == 0b0001 || 1==1) { //double pawn push
-                EnPassantSquare = -1;
-            }
+            // if (flag == 0b0001 || 1==1) { //double pawn push
+            //     EnPassantSquare = -1;
+            // }
             //UnupdateEval(move);
             if (flag == 0 || flag == 0b0100 || flag == 0b0001) {
                 ColourToMove = (ColourToMove == 0 ? 1 : 0);
@@ -272,6 +313,13 @@ namespace ChessEngine
                 UpdateZobrist(move);
                 ColourToMove = (ColourToMove == 0 ? 1 : 0);
             }
+            GameState PreviousState = RestoreInformation.Pop();
+            this.WhiteShortCastle = PreviousState.WhiteShortCastle;
+            this.WhiteLongCastle = PreviousState.WhiteLongCastle;
+            this.BlackShortCastle = PreviousState.BlackShortCastle;
+            this.BlackLongCastle = PreviousState.BlackLongCastle;
+            this.EnPassantSquare = PreviousState.EnPassantSquare;
+            NextPositionForThreefold = Threefold.Pop();
         }
 
         public void UpdateEval(Move move)
@@ -374,118 +422,118 @@ namespace ChessEngine
             Zobrist ^= Hasher.SideToMove;
         }
 
-        // public void Uncastle(int type)
-        // {
-        //     if (type == 1 && this.ColourToMove == 1) //short castle for white
-        //     {
-        //         this.WhiteKing.SetData(0x10UL); //king back in position
-        //         this.OccupiedSquares.AND(~0x60UL); //clear the king and rook
-        //         this.OccupiedSquares.OR(0x90UL); //puts king and rook back
-        //         this.WhitePieces.AND(~0x60UL); //clear the king and rook
-        //         this.WhitePieces.OR(0x90UL);
-        //         this.WhiteRooks.ClearBit(5); //clear rook
-        //         this.WhiteRooks.SetBit(7); //replace rook
-        //         this.WhiteLongCastle = true;
-        //         this.WhiteShortCastle = true;
-        //         return;
-        //     }
-        //     if (type == 2 && this.ColourToMove == 1) //long castle for white
-        //     {
-        //         this.WhiteKing.SetData(0x10UL); //resets king position
-        //         this.OccupiedSquares.AND(~0x6UL); //clears the king and rook
-        //         this.OccupiedSquares.OR(0x11UL);
-        //         this.WhitePieces.AND(~0x6UL); //clears the king and rook
-        //         this.WhitePieces.OR(0x11UL);
-        //         this.WhiteRooks.ClearBit(3); //clear rook
-        //         this.WhiteRooks.SetBit(0);// replace rook
-        //         this.WhiteLongCastle = true;
-        //         this.WhiteShortCastle = true;
-        //         return;
-        //     }
-        //     if (type == 1 && this.ColourToMove == 0) //short castle for black
-        //     {
-        //         this.BlackKing.SetData(0x1000000000000000UL); //resets king position
-        //         this.OccupiedSquares.AND(~0x6000000000000000UL); //clears rook and king
-        //         this.OccupiedSquares.OR(0x9000000000000000UL);
-        //         this.BlackPieces.AND(~0x6000000000000000UL); //clears rook and king
-        //         this.BlackPieces.OR(0x9000000000000000UL);
-        //         this.BlackRooks.ClearBit(61);
-        //         this.BlackRooks.SetBit(63);
-        //         this.BlackShortCastle = true;
-        //         this.BlackLongCastle = true;
-        //         return;
-        //     }
-        //     if (type == 2 && this.ColourToMove == 0) //long castle for black
-        //     {
-        //         //Console.WriteLine("un long castled for black");
-        //         this.BlackKing.SetData(0x1000000000000000UL); //resets king position
-        //         this.OccupiedSquares.AND(~0x0C00000000000000UL); //clears rook and king
-        //         this.OccupiedSquares.OR(0x1100000000000000UL);
-        //         this.BlackPieces.AND(~0x0C00000000000000UL); //clears rook and king
-        //         this.BlackPieces.OR(0x1100000000000000UL);
-        //         this.BlackRooks.ClearBit(59); //clears rook from castled position
-        //         this.BlackRooks.SetBit(56); //puts rook back in corner
-        //         this.BlackShortCastle = true;
-        //         this.BlackLongCastle = true;
-        //         return;
-        //     }
-        // }
+        public void Uncastle(int type)
+        {
+            if (type == 1 && this.ColourToMove == 1) //short castle for white
+            {
+                this.Pieces[5] = (0x10UL); //king back in position
+                this.OccupiedSquares &= (~0x60UL); //clear the king and rook
+                this.OccupiedSquares |= (0x90UL); //puts king and rook back
+                this.WhitePieces &= (~0x60UL); //clear the king and rook
+                this.WhitePieces |= (0x90UL);
+                this.Pieces[3] &= ~(1UL << 5); //clear rook
+                this.Pieces[3] |= (1UL << 7); //replace rook
+                this.WhiteLongCastle = true;
+                this.WhiteShortCastle = true;
+                return;
+            }
+            if (type == 2 && this.ColourToMove == 1) //long castle for white
+            {
+                this.Pieces[5] = (0x10UL); //resets king position
+                this.OccupiedSquares &= (~0x6UL); //clears the king and rook
+                this.OccupiedSquares |= (0x11UL);
+                this.WhitePieces &= (~0x6UL); //clears the king and rook
+                this.WhitePieces |= (0x11UL);
+                this.Pieces[3] &= ~(1UL << 3); //clear rook
+                this.Pieces[3] |= (1UL << 0);// replace rook
+                this.WhiteLongCastle = true;
+                this.WhiteShortCastle = true;
+                return;
+            }
+            if (type == 1 && this.ColourToMove == 0) //short castle for black
+            {
+                this.Pieces[11] = (0x1000000000000000UL); //resets king position
+                this.OccupiedSquares &= (~0x6000000000000000UL); //clears rook and king
+                this.OccupiedSquares |= (0x9000000000000000UL);
+                this.BlackPieces &= (~0x6000000000000000UL); //clears rook and king
+                this.BlackPieces |= (0x9000000000000000UL);
+                this.Pieces[9] &= ~(1UL << 61);
+                this.Pieces[9] |= (1UL << 63);
+                this.BlackShortCastle = true;
+                this.BlackLongCastle = true;
+                return;
+            }
+            if (type == 2 && this.ColourToMove == 0) //long castle for black
+            {
+                //Console.WriteLine("un long castled for black");
+                this.Pieces[11] = (0x1000000000000000UL); //resets king position
+                this.OccupiedSquares &= (~0x0C00000000000000UL); //clears rook and king
+                this.OccupiedSquares |= (0x1100000000000000UL);
+                this.BlackPieces &= (~0x0C00000000000000UL); //clears rook and king
+                this.BlackPieces |= (0x1100000000000000UL);
+                this.Pieces[9] &= ~(1UL << 59); //clears rook from castled position
+                this.Pieces[9] |= (1UL << 56); //puts rook back in corner
+                this.BlackShortCastle = true;
+                this.BlackLongCastle = true;
+                return;
+            }
+        }
 
-        // public void Castle(int type)
-        // {
-        //     if (type == 1 && this.ColourToMove == 0) //short castle for white
-        //     {
-        //         this.WhiteKing.SetData(0x40UL);
-        //         this.OccupiedSquares.AND(~0x90UL); 
-        //         this.OccupiedSquares.OR(0x60UL);
-        //         this.WhitePieces.AND(~0x90UL);
-        //         this.WhitePieces.OR(0x60UL);
-        //         this.WhiteRooks.ClearBit(7);
-        //         this.WhiteRooks.SetBit(5);
-        //         this.WhiteLongCastle = false;
-        //         this.WhiteShortCastle = false;
-        //         return;
-        //     }
-        //     if (type == 2 && this.ColourToMove == 0) //long castle for white
-        //     {
-        //         this.WhiteKing.SetData(0x4UL);
-        //         this.OccupiedSquares.AND(~0x11UL);
-        //         this.OccupiedSquares.OR(0xCUL);
-        //         this.WhitePieces.AND(~0x11UL);
-        //         this.WhitePieces.OR(0xCUL);
-        //         this.WhiteRooks.ClearBit(0);
-        //         this.WhiteRooks.SetBit(3);
-        //         this.WhiteLongCastle = false;
-        //         this.WhiteShortCastle = false;
-        //         return;
-        //     }
-        //     if (type == 1 && this.ColourToMove == 1) //short castle for black
-        //     {
-        //         this.BlackKing.SetData(0x4000000000000000UL);
-        //         this.OccupiedSquares.AND(~0x9000000000000000UL);
-        //         this.OccupiedSquares.OR(0x6000000000000000UL);
-        //         this.BlackPieces.AND(~0x9000000000000000UL);
-        //         this.BlackPieces.OR(0x6000000000000000UL);
-        //         this.BlackRooks.ClearBit(63);
-        //         this.BlackRooks.SetBit(61);
-        //         this.BlackShortCastle = false;
-        //         this.BlackLongCastle = false;
-        //         return;
-        //     }
-        //     if (type == 2 && this.ColourToMove == 1) //long castle for black
-        //     {
-        //         this.BlackKing.SetData(0x400000000000000UL);
-        //         this.OccupiedSquares.AND(~0x1100000000000000UL);
-        //         this.OccupiedSquares.OR(0x0C00000000000000UL);
-        //         this.BlackPieces.AND(~0x1100000000000000UL);
-        //         this.BlackPieces.OR(0x0C00000000000000UL);
-        //         this.BlackRooks.ClearBit(56);
-        //         this.BlackRooks.SetBit(59);
-        //         this.BlackShortCastle = false;
-        //         this.BlackLongCastle = false;
-        //         return;
-        //     }
-        // }
+        public void Castle(int type)
+        {
+            if (type == 1 && this.ColourToMove == 0) //short castle for white
+            {
+                this.Pieces[5] = (0x40UL); //white king bitboard
+                this.OccupiedSquares &= (~0x90UL); 
+                this.OccupiedSquares |= (0x60UL);
+                this.WhitePieces &= (~0x90UL);
+                this.WhitePieces |= (0x60UL);
+                this.Pieces[3] &= ~(1UL << 7);
+                this.Pieces[3] |= (1UL << 5);
+                this.WhiteLongCastle = false;
+                this.WhiteShortCastle = false;
+                return;
+            }
+            if (type == 2 && this.ColourToMove == 0) //long castle for white
+            {
+                this.Pieces[5] = (0x4UL);
+                this.OccupiedSquares &= (~0x11UL);
+                this.OccupiedSquares |= (0xCUL);
+                this.WhitePieces &= (~0x11UL);
+                this.WhitePieces |= (0xCUL);
+                this.Pieces[3] &= ~(1UL << 0);
+                this.Pieces[3] |= (1UL << 3);
+                this.WhiteLongCastle = false;
+                this.WhiteShortCastle = false;
+                return;
+            }
+            if (type == 1 && this.ColourToMove == 1) //short castle for black
+            {
+                this.Pieces[11] = (0x4000000000000000UL);
+                this.OccupiedSquares &= (~0x9000000000000000UL);
+                this.OccupiedSquares |= (0x6000000000000000UL);
+                this.BlackPieces &= (~0x9000000000000000UL);
+                this.BlackPieces |= (0x6000000000000000UL);
+                this.Pieces[9] &= ~(1UL << 63);
+                this.Pieces[9] |= (1UL << 61);
+                this.BlackShortCastle = false;
+                this.BlackLongCastle = false;
+                return;
+            }
+            if (type == 2 && this.ColourToMove == 1) //long castle for black
+            {
+                this.Pieces[11] = (0x400000000000000UL);
+                this.OccupiedSquares &= (~0x1100000000000000UL);
+                this.OccupiedSquares |= (0x0C00000000000000UL);
+                this.BlackPieces &= (~0x1100000000000000UL);
+                this.BlackPieces |= (0x0C00000000000000UL);
+                this.Pieces[9] &= ~(1UL << 56);
+                this.Pieces[9] |= (1UL << 59);
+                this.BlackShortCastle = false;
+                this.BlackLongCastle = false;
+                return;
+            }
+        }
 
         public void RefreshBitboardConfiguration()
         {
@@ -509,7 +557,7 @@ namespace ChessEngine
             board.BlackLongCastle = this.BlackLongCastle;
             board.Eval = this.Eval;
             board.GamePhase = this.GamePhase;
-            board.History = this.History;
+            board.Threefold = this.Threefold;
 
             for (int i = 0; i < 12; i++)
             {
@@ -524,8 +572,11 @@ namespace ChessEngine
         public void UploadFEN(string FEN)
         {
             int currentSquare = 56;
+            int index = 0;
             foreach (char character in FEN)
             {
+                index++;
+                if (character == ' ') break;
                 if (character == '/') //new rank
                 {
                     currentSquare -= 17;
@@ -584,19 +635,22 @@ namespace ChessEngine
                         case 'K':
                             Pieces[5] |= (1UL << currentSquare);
                             break;
-                        // case ' ':
-                        //     ColourToMove = (FEN[currentSquare+1] == 'w' ? 0 : 1);
-                        //     break;
                         default:
                             break;
                     }
                     currentSquare++;
+                    if (FEN[index] == ' ') break;
                 }
             }
-            // if (!WhiteKing.IsBitSet(3) || !WhiteRooks.IsBitSet(0)) WhiteShortCastle = false;
-            // if (!WhiteKing.IsBitSet(3) || !WhiteRooks.IsBitSet(7)) WhiteLongCastle = false;
-            // if (!WhiteKing.IsBitSet(59) || !WhiteRooks.IsBitSet(56)) BlackShortCastle = false;
-            // if (!WhiteKing.IsBitSet(59) || !WhiteRooks.IsBitSet(63)) BlackLongCastle = false;
+            index++; //gets to the player to move
+            if (FEN[index] == ' ') index--;
+            this.ColourToMove = (FEN[index] == 'w' ? 0 : 1);
+            index+=2;
+            string CastleRights = FEN.Substring(index, 4); //selects castling rights
+            if (CastleRights.Contains("K")) this.WhiteShortCastle = true;
+            if (CastleRights.Contains("Q")) this.WhiteLongCastle = true;
+            if (CastleRights.Contains("k")) this.BlackShortCastle = true;
+            if (CastleRights.Contains("Q")) this.BlackLongCastle = true;
         }
 
         public void PrintBoard()
@@ -677,5 +731,15 @@ namespace ChessEngine
             Console.WriteLine("Occupied Squares:");
             (new Bitboard(OccupiedSquares)).PrintData();
         }
+    }
+
+    public struct GameState //stores unrestorable state information
+    {
+        public bool WhiteShortCastle;
+        public bool WhiteLongCastle;
+        public bool BlackShortCastle;
+        public bool BlackLongCastle;
+        public int EnPassantSquare; // En passant target square (-1 if none)
+        public int HalfmoveClock;   // For the 50-move rule
     }
 }

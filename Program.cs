@@ -7,89 +7,76 @@ namespace ChessEngine
     public class Program 
     {
         public static int turn = 0;
+        public static int MoveNumber = 0;
         static void Main()
         {
-            //setup stuff
-            //Console.WriteLine(Magic.FindMagic(27, PreComputeData.BishopMasks, false));
-            Board board = new Board();
-            PreComputeData.InitializeAttackBitboards();
             TranspositionTable TTable = new TranspositionTable();
+            Board board = new Board();
+            //board = new Board("rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2");
+            PreComputeData.InitializeAttackBitboards();
             Evaluation.InitializeKillerMoves();
-            board.Eval = Evaluation.WeightedMaterial(board);
-            Test.LoadTestPositions();
-            //board = new Board(Test.FenDataBase[16]);
+            board.Eval = Evaluation.Material(board);
+            Console.WriteLine(board.Eval);
             board.PrintBoard();
-            //board.Zobrist = board.Hasher.Hash(board);
-            board.Eval = Evaluation.Evaluate(board);
-            //for (int i = 0; i < 7; i++) Console.WriteLine(Search.Perft(i,board));
+            Test.LoadFenDataBase();
+            Test.EvaluationTest(1000, 0);
+
+            // board = new Board("2r4k/p4b2/4pq2/1p1p1nR1/5P2/P2B4/1P2Q2P/1K4R1 b - - 2 30");
+            // board.PrintBoard();
+            // board.Zobrist = board.Hasher.Hash(board);
+            // board.Eval = Evaluation.Evaluate(board);
+            //Console.WriteLine(board.Eval);
+            //for (int i = 0; i < 5; i++) Console.WriteLine(Search.Perft(i,board));
 
             //after program has been loaded
+            //PrintMoves(board);
+            
 
-            while (1==1)
+            while (true==false)
             {
-                (Move BestMove, float Eval, Move[] PV) = Search.IterativeDeepeningSearch(board, 7, TTable);
+                (Move BestMove, float Eval, Move[] PV, float[] evals) = Search.IterativeDeepeningSearch(board, 8, new TranspositionTable());
                 board.MakeMove(BestMove);
-                Console.WriteLine(FormatMove(BestMove));
+                MoveNumber++;
+                Console.WriteLine(MoveNumber + ". " + FormatMove(BestMove) + " -- Evaluation: " + ((Math.Abs(Math.Abs(-1000000/Eval) - Math.Floor(Math.Abs(-1000000/Eval))) < 0.01) ? ("Mate In: " + (Math.Floor(Math.Abs(-1000000/Eval)))) : Eval));
                 board.PrintBoard();
-                Console.WriteLine("tranposition table usage: " + (TTable.PercentageFull()) + " out of " + (1UL << 20));
+
+                (bool checkmate, bool stalemate) = board.IsCheckMate();
+                if (checkmate) 
+                {
+                    Console.WriteLine("Checkmate!");
+                    break;
+                }
+                if (stalemate) 
+                {
+                    Console.WriteLine("Stalemate!");
+                    break;
+                }
+                Search.flippy *= -1;
+
+                (BestMove, Eval, PV, evals) = Search.IterativeDeepeningSearch(board, 6, new TranspositionTable());
+                board.MakeMove(BestMove);
+                MoveNumber++;
+                Console.WriteLine(MoveNumber + ". " + FormatMove(BestMove) + " -- Evaluation: " + ((Math.Abs(Math.Abs(-1000000/Eval) - Math.Floor(Math.Abs(-1000000/Eval))) < 0.01) ? ("Mate In: " + (Math.Floor(Math.Abs(-1000000/Eval)))) : Eval));
+                board.PrintBoard();
+
+                (checkmate, stalemate) = board.IsCheckMate();
+                if (checkmate) 
+                {
+                    Console.WriteLine("Checkmate!");
+                    break;
+                }
+                if (stalemate) 
+                {
+                    Console.WriteLine("Stalemate!");
+                    break;
+                }
+                Search.flippy *= -1;
+
+                
 
                 // Move move = GetUserMove(board);
                 // board.MakeMove(move);
                 // board.PrintBoard();
-
-
-
-                // Console.WriteLine("tranpositions: " + Search.Transpositions);
-               
-                // Move[] moves = new Move[3];
-                // moves[0] = move;
-                // Console.WriteLine(board.Zobrist);
-
-
-                // move = GetUserMove(board);
-                // board.MakeMove(move);
-                // board.PrintBoard();
-                // moves[1] = move;
-                // Console.WriteLine(board.Zobrist);
-
-
-
-                // move = GetUserMove(board);
-                // board.MakeMove(move);
-                // board.PrintBoard();
-                // moves[2] = move;
-                // Console.WriteLine(board.Zobrist);
-
-                // board.UnmakeMove(moves[2]);
-                // board.UnmakeMove(moves[1]);
-                // board.UnmakeMove(moves[0]);
-                // Console.WriteLine(board.Zobrist);
-
-                // move = GetUserMove(board);
-                // board.MakeMove(move);
-                // board.PrintBoard();
-                // moves[0] = move;
-                // Console.WriteLine(board.Zobrist);
-
-
-                // move = GetUserMove(board);
-                // board.MakeMove(move);
-                // board.PrintBoard();
-                // moves[1] = move;
-                // Console.WriteLine(board.Zobrist);
-
-
-
-                // move = GetUserMove(board);
-                // board.MakeMove(move);
-                // board.PrintBoard();
-                // moves[2] = move;
-                // Console.WriteLine(board.Zobrist);
-
-                // board.UnmakeMove(moves[2]);
-                // board.UnmakeMove(moves[1]);
-                // board.UnmakeMove(moves[0]);
-                // Console.WriteLine(board.Zobrist);
             }
         }
 

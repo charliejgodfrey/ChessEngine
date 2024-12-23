@@ -30,6 +30,7 @@ namespace ChessEngine
                 MoveNumber = GeneratePawnMoves(board, Moves, MoveNumber, Blocks, onlyCaptures);
                 MoveNumber = GenerateKingMoves(board, Moves, MoveNumber, Blocks, onlyCaptures); 
                 MoveNumber = GenerateKnightMoves(board, Moves, MoveNumber, Blocks, onlyCaptures);
+                if (!Check) MoveNumber = CheckCastle(board, Moves, MoveNumber);
             }
             //Console.WriteLine("turn: " + board.ColourToMove);
 
@@ -128,10 +129,10 @@ namespace ChessEngine
             return (Pins, StillPinnedSquares);
         }
 
-        public static bool InCheck(Board board, int Player)
+        public static bool InCheck(Board board, int Player, int OverideSquare = -1)
         {
             int ColourAdd = (Player == 0 ? 6 : 0);
-            int KingSquare = BitOperations.TrailingZeroCount(board.Pieces[5+Player*6]);
+            int KingSquare = (OverideSquare == -1 ? BitOperations.TrailingZeroCount(board.Pieces[5+Player*6]) : OverideSquare);
 
             ulong KnightAttacks = PreComputeData.KnightAttackBitboards[KingSquare].GetData(); // where a knight could attack the king from
             if ((KnightAttacks & board.Pieces[1 + ColourAdd]) != 0)
@@ -229,32 +230,37 @@ namespace ChessEngine
             return !Legal;
         }
 
-        // public static int CheckCastle(Board board, Move[] moves, int MoveNumber) // currently allows castling out of, and through check
-        // {
-        //     if (board.ColourToMove == 0 && ((board.OccupiedSquares & 0x60) == 0) && board.WhiteShortCastle && !MoveGenerator.UnderAttack(board, 5) && !MoveGenerator.UnderAttack(board, 6))
-        //     {
-        //         moves[MoveNumber] = new Move(0,0,0b0010,0,0); //white short castle
-        //         MoveNumber++;
-        //     }
-        //     if (board.ColourToMove == 0 && ((board.OccupiedSquares & 0xE) == 0) && board.WhiteLongCastle && !MoveGenerator.UnderAttack(board, 2) && !MoveGenerator.UnderAttack(board,3))
-        //     {
-        //         moves[MoveNumber] = new Move(0,0,0b0011,0,0); //white long castle
-        //         MoveNumber++;
-        //     }
-        //     if (board.ColourToMove == 1 && ((board.OccupiedSquares.Data() & 0x6000000000000000) == 0) && board.BlackShortCastle && !MoveGenerator.UnderAttack(board, 61) && !MoveGenerator.UnderAttack(board, 62))
-        //     {
-        //         moves[MoveNumber] = new Move(0,0,0b0010,0,0); //black short castle
-        //         //Console.WriteLine("black short castle");
-        //         MoveNumber++;
-        //     }
-        //     if (board.ColourToMove == 1 && ((board.OccupiedSquares.GetData() & 0x0E00000000000000) == 0) && board.BlackLongCastle && !MoveGenerator.UnderAttack(board, 58) && !MoveGenerator.UnderAttack(board,59))
-        //     {
-        //         moves[MoveNumber] = new Move(0,0,0b0011,0,0); //black long castle
-        //         MoveNumber++;
-        //         //Console.WriteLine("black long castle");
-        //     }
-        //     return MoveNumber;
-        // }
+        public static int CheckCastle(Board board, Move[] moves, int MoveNumber) // currently allows castling out of, and through check
+        {
+            if ((board.Pieces[3] & 1UL) == 0) board.WhiteLongCastle = false;
+            if ((board.Pieces[3] & (1UL<<7)) == 0) board.WhiteShortCastle = false;
+            if ((board.Pieces[9] & (1UL<<56))== 0) board.BlackLongCastle = false;
+            if ((board.Pieces[9] & (1UL<<63)) == 0) board.BlackShortCastle = false;
+            if (board.ColourToMove == 0 && ((board.OccupiedSquares & 0x60) == 0) && board.WhiteShortCastle && !MoveGenerator.InCheck(board, board.ColourToMove, 5) && !MoveGenerator.InCheck(board, board.ColourToMove, 6))
+            {
+                moves[MoveNumber] = new Move(0,0,0b0010,0,0); //white short castle
+                MoveNumber++;
+            }
+            if (board.ColourToMove == 0 && ((board.OccupiedSquares & 0xE) == 0) && board.WhiteLongCastle && !MoveGenerator.InCheck(board,board.ColourToMove, 2) && !MoveGenerator.InCheck(board,board.ColourToMove,3))
+            {
+                moves[MoveNumber] = new Move(0,0,0b0011,0,0); //white long castle
+                MoveNumber++;
+            }
+            if (board.ColourToMove == 1 && ((board.OccupiedSquares & 0x6000000000000000) == 0) && board.BlackShortCastle && !MoveGenerator.InCheck(board,board.ColourToMove, 61) && !MoveGenerator.InCheck(board,board.ColourToMove, 62))
+            {
+                moves[MoveNumber] = new Move(0,0,0b0010,0,0); //black short castle
+                //Console.WriteLine("black short castle");
+                MoveNumber++;
+            }
+            if (board.ColourToMove == 1 && ((board.OccupiedSquares & 0x0E00000000000000) == 0) && board.BlackLongCastle && !MoveGenerator.InCheck(board,board.ColourToMove, 58) && !MoveGenerator.InCheck(board,board.ColourToMove,59))
+            {
+                moves[MoveNumber] = new Move(0,0,0b0011,0,0); //black long castle
+                MoveNumber++;
+                //Console.WriteLine("black long castle");
+            }
+            return MoveNumber;
+        }
+
         public static int GenerateQueenMoves(Board board, Move[] Moves, int MoveNumber, ulong Blocks, bool onlyCaptures = false)
         {
             ulong QueenLocations = board.Pieces[4 + board.ColourToMove*6];
@@ -447,7 +453,7 @@ namespace ChessEngine
                 WestCapture = (board.Pieces[0]) & ((board.BlackPieces | 1UL<<board.EnPassantSquare) >>7) & 0xFEFEFEFEFEFEFEFE; //does the same thing for the other direction
             } else { //blacks turn
                 WestCapture = (board.Pieces[6]) & ((board.WhitePieces | 1UL<<board.EnPassantSquare) <<9) & 0xFEFEFEFEFEFEFEFE; //this essentially checks there is a piece that can be captured and accounts for overflow stuff
-                EastCapture = (board.Pieces[6]) & ((board.WhitePieces | 1UL<<board.EnPassantSquare) <<7) & 0x7F7F7F7F7F7F7F7F; //does the same thing for the other direction
+                EastCapture = (board.Pieces[6]) & ((board.WhitePieces | (1UL<<board.EnPassantSquare)) <<7) & 0x7F7F7F7F7F7F7F7F; //does the same thing for the other direction
             }
 
             while (EastCapture > 0) //for all the capturing pawns to the right

@@ -21,11 +21,22 @@ namespace ChessEngine
         public static float avgDiffer = 0;
         public static int count = 0;
 
+        //weighting variables
+        public const float MOBILITY = 0.15f;
+        public const float PAWN = 1f;
+        public const float PAWNSTRUCTURE = 0.2f;
+        public const float MUTUALDEFENSE = 8f;
+        public const float MATERIAL = 1f;
+        public const float KINGSAFETY = 0.8f;
+        public const float MATE = 0.8f;
+        public const float OVERALL = 1f;
+
         public static float Evaluate(Board board)
         {
+            //return WeightedMaterial(board);
             (ulong WhitePawnAttacks, ulong BlackPawnAttacks) = PawnAttacks(board);
-            (float WhiteMiddleMobility, float WhiteEndMobility, ulong WhiteAttacks, float WhiteGamePhase, float WhiteMiddleGameMaterial, float WhiteEndGameMaterial) = EvaluateMobility(board, 0, BlackPawnAttacks);
-            (float BlackMiddleMobility, float BlackEndMobility, ulong BlackAttacks, float BlackGamePhase, float BlackMiddleGameMaterial, float BlackEndGameMaterial) = EvaluateMobility(board, 1, WhitePawnAttacks);
+            (float WhiteMiddleMobility, float WhiteEndMobility, ulong WhiteAttacks, float WhiteGamePhase, float WhiteMiddleGameMaterial, float WhiteEndGameMaterial, float WhiteKingAttack, float WhiteKingDefense) = EvaluateMobility(board, 0, BlackPawnAttacks);
+            (float BlackMiddleMobility, float BlackEndMobility, ulong BlackAttacks, float BlackGamePhase, float BlackMiddleGameMaterial, float BlackEndGameMaterial, float BlackKingAttack, float BlackKingDefense) = EvaluateMobility(board, 1, WhitePawnAttacks);
             (float PawnPhase, float PawnMiddleScore, float PawnEndScore) = PawnMaterial(board);
             float PawnStructure = EvaluatePawnStructure(board);
             (float MiddleKingScore, float EndKingScore) = KingMaterial(board);
@@ -34,13 +45,24 @@ namespace ChessEngine
             float MutualDefenseBonus = BitOperations.PopCount(board.WhitePieces & WhiteAttacks) - BitOperations.PopCount(board.BlackPieces & BlackAttacks);
 
             board.GamePhase = WhiteGamePhase + BlackGamePhase + PawnPhase; //20000 for the kings;
+            float MateHeuristic = MatingHeuristic(board, BlackAttacks, board.GamePhase, 0, WhiteMiddleGameMaterial-BlackMiddleGameMaterial < -200) - MatingHeuristic(board, WhiteAttacks, board.GamePhase, 1, WhiteMiddleGameMaterial-BlackMiddleGameMaterial > 200);
+            //Console.WriteLine(MateHeuristic);
 
-            float Score = (((WhiteMiddleMobility-BlackMiddleMobility+WhiteMiddleGameMaterial-BlackMiddleGameMaterial + PawnMiddleScore + MiddleKingScore + MiddleKingSafety) * (board.GamePhase)) + (WhiteEndMobility-BlackEndMobility+WhiteEndGameMaterial-BlackEndGameMaterial+PawnEndScore + EndKingSafety + EndKingScore) * (8000-board.GamePhase))/8000; //this is disgusting for efficiency
-
-            return (float)( 
+            float Score = (((
+                (WhiteMiddleMobility-BlackMiddleMobility) * MOBILITY+(WhiteMiddleGameMaterial-BlackMiddleGameMaterial) * MATERIAL
+                + PawnMiddleScore * PAWN
+                + (MiddleKingScore + MiddleKingSafety + WhiteKingAttack + WhiteKingDefense) * KINGSAFETY)
+                * (board.GamePhase)) 
+                + ((WhiteEndMobility-BlackEndMobility) * MOBILITY+(WhiteEndGameMaterial-BlackEndGameMaterial) * MATERIAL
+                +PawnEndScore * PAWN
+                + (EndKingSafety + EndKingScore + BlackKingAttack + BlackKingDefense) *KINGSAFETY)
+                * (8000-board.GamePhase))/8000 //this is disgusting for efficiency
+                + MateHeuristic * MATE; //this already considers phase
+            
+            return OVERALL * (int)( 
             Score + 
-            PawnStructure + 
-            3 * MutualDefenseBonus
+            PawnStructure * PAWNSTRUCTURE+ 
+            MutualDefenseBonus * MUTUALDEFENSE
             );
             //return board.Eval;
         }
@@ -50,8 +72,8 @@ namespace ChessEngine
             int WhiteKing = BitOperations.TrailingZeroCount(board.Pieces[5]);
             int BlackKing = BitOperations.TrailingZeroCount(board.Pieces[11]);
             //escape squares
-            int WhiteEscapeSquares = BitOperations.PopCount(PreComputeData.KingAttackBitboards[WhiteKing].GetData() & ~BlackAttacks);
-            int BlackEscapeSquares = BitOperations.PopCount(PreComputeData.KingAttackBitboards[BlackKing].GetData() & ~WhiteAttacks);
+            int WhiteEscapeSquares = BitOperations.PopCount(PreComputeData.KingAttackBitboards[WhiteKing].GetData() & ~BlackAttacks & ~board.WhitePieces);
+            int BlackEscapeSquares = BitOperations.PopCount(PreComputeData.KingAttackBitboards[BlackKing].GetData() & ~WhiteAttacks & ~board.BlackPieces);
 
             //pawn shield
             int WhiteShield = BitOperations.PopCount(PreComputeData.KingShieldMasks[0,WhiteKing] & board.Pieces[0]);
@@ -93,8 +115,8 @@ namespace ChessEngine
             float WhiteMiddleScore = 8*WhiteEscapeSquares + WhiteShield*10 - WhiteOpens;
             float BlackMiddleScore = 8*BlackEscapeSquares + BlackShield*10 - BlackOpens;
 
-            float WhiteEndScore = 8*WhiteEscapeSquares; //king activity becomes much more important
-            float BlackEndScore = 8*BlackEscapeSquares; //but we don't want to get mated either
+            float WhiteEndScore = WhiteEscapeSquares == 0 ? -25 : 8*WhiteEscapeSquares; //king activity becomes much more important
+            float BlackEndScore = BlackEscapeSquares == 0 ? -25 : 8*BlackEscapeSquares; //but we don't want to get mated either
 
 
             return (WhiteMiddleScore - BlackMiddleScore, WhiteEndScore-BlackEndScore);
@@ -223,7 +245,7 @@ namespace ChessEngine
                 EndScore += eg_tables[0][Evaluation.Flip[i]];
             }
             Pawns = board.Pieces[6];
-            while (Pawns > 0) //for each white pawn
+            while (Pawns > 0) //for each black pawn
             {
                 int i = BitOperations.TrailingZeroCount(Pawns);
                 Pawns &= ~(1UL << i);
@@ -237,7 +259,7 @@ namespace ChessEngine
             return (NewGamePhase, MiddleScore, EndScore);
         }
 
-        public static (float, float, ulong, float, float, float) EvaluateMobility(Board board, int Player, ulong PawnAttacks)
+        public static (float, float, ulong, float, float, float, float, float) EvaluateMobility(Board board, int Player, ulong PawnAttacks)
         {
             float NewGamePhase = 0;
             float MiddleScore = 0; //stuff for the weighted material
@@ -248,11 +270,15 @@ namespace ChessEngine
             int ColourAdd = Player * 6;
             ulong FriendlyPieces = (Player == 0 ? board.WhitePieces : board.BlackPieces);
 
+            int ConnectedRookBonus = 0;
+            int RookSeventhBonus = 0;
+
             float OpenFileScore = 0;
             float KingProximityDefense = 0;
             float KingProximityAttack = 0;
             int FriendlyKing = BitOperations.TrailingZeroCount(board.Pieces[5+ColourAdd]);
             int EnemyKing = BitOperations.TrailingZeroCount(board.Pieces[ColourAdd == 6 ? 5 : 11]);
+            float TrappedPiecePenalty = 0;
 
             int KnightMoves = 0;
             ulong Knights = board.Pieces[ColourAdd+1];
@@ -287,11 +313,14 @@ namespace ChessEngine
             while (Bishops > 0) //for each bishop
             {
                 int square = BitOperations.TrailingZeroCount(Bishops);
+                if (square > 63) break;
                 ulong Attacks = MoveGenerator.GenerateBishopAttacks(board, square);
                 AttackedSquares |= Attacks;
                 Attacks &= ~FriendlyPieces;
                 BishopMoves += BitOperations.PopCount(Attacks) + BitOperations.PopCount(Attacks&Undefended); //reduced bonus for when the seen squares are defended by a pawn 
                 Bishops &= ~(1UL << square);
+
+                if (Attacks == 0) TrappedPiecePenalty += 100;
 
                 KingProximityDefense += distance(square, FriendlyKing) < 3 ? 10 : 0;
                 KingProximityAttack += distance(square, EnemyKing) < 4 ? 15 : 0;
@@ -315,11 +344,19 @@ namespace ChessEngine
             while (Rooks > 0) //for each rook
             {
                 int square = BitOperations.TrailingZeroCount(Rooks);
+                if (square == 64) Console.WriteLine(Rooks);
                 ulong Attacks = MoveGenerator.GenerateRookAttacks(board, square);
                 AttackedSquares |= Attacks;
                 Attacks &= ~FriendlyPieces;
                 RookMoves += BitOperations.PopCount(Attacks) + BitOperations.PopCount(Attacks&Undefended);
                 Rooks &= ~(1UL << square);
+                if (Attacks == 0) TrappedPiecePenalty += 150; 
+
+                int Connected = BitOperations.PopCount(Rooks & board.Pieces[ColourAdd+3]);
+                int RooksOnSeventh = ((square / 8 == 7 && Player == 0) || (square / 8 == 1 && Player == 1) ? (Connected > 0 ? 2 : 1) : 0);
+
+                ConnectedRookBonus += Connected;
+                RookSeventhBonus += RooksOnSeventh;
 
                 KingProximityDefense += distance(square, FriendlyKing) < 4 ? 8 : 0;
                 KingProximityAttack += distance(square, EnemyKing) < 6 ? 20 : 0;
@@ -352,8 +389,10 @@ namespace ChessEngine
                 QueenMoves += BitOperations.PopCount(Attacks) + BitOperations.PopCount(Attacks&Undefended);
                 Queens &= ~(1UL << square);
 
+                if (Attacks == 0) TrappedPiecePenalty += 200;
+
                 KingProximityDefense += distance(square, FriendlyKing) < 3 ? 10 : 0;
-                KingProximityAttack += distance(square, EnemyKing) < 4 ? 45 : 0;
+                KingProximityAttack += distance(square, EnemyKing) < 5 ? 45 : 0;
 
                 NewGamePhase += MaterialValues[4]; //stuff for the weighted material
                 MiddleScore += MaterialValues[4];
@@ -385,9 +424,34 @@ namespace ChessEngine
             AttackedSquares |= (WestCapture | EastCapture);
 
             int CentreControl = 2*BitOperations.PopCount(AttackedSquares & 0x0000003C3C000000);
-            float MiddleGameScore = (float)(2*(KnightMoves + BishopMoves + 2*CentreControl) + PawnMoves + 0.5*(RookMoves) + QueenMoves + OpenFileScore + KingProximityAttack + KingProximityDefense/3); //weighted more towards minor piece mobility
-            float EndGameScore = (float)(KnightMoves + BishopMoves + CentreControl + 2 * (PawnMoves + RookMoves + QueenMoves) + OpenFileScore/1.5f + KingProximityDefense/8 + KingProximityAttack/2);
-            return (MiddleGameScore, EndGameScore, AttackedSquares, NewGamePhase, MiddleScore, EndScore); //interpolated depending on material count
+            float MiddleGameScore = (float)(2*(KnightMoves + BishopMoves + 2*CentreControl) + PawnMoves + 0.5*(RookMoves) + QueenMoves + OpenFileScore + ConnectedRookBonus * 8 + RookSeventhBonus * 2) + TrappedPiecePenalty; //weighted more towards minor piece mobility
+            float EndGameScore = (float)(KnightMoves + BishopMoves + CentreControl + 2 * (PawnMoves + RookMoves + QueenMoves) + OpenFileScore/1.5f + ConnectedRookBonus * 12 + RookSeventhBonus * 25) + TrappedPiecePenalty;
+            return (MiddleGameScore, EndGameScore, AttackedSquares, NewGamePhase, MiddleScore, EndScore, KingProximityAttack, KingProximityDefense); //interpolated depending on material count
+        }
+
+        public static float MatingHeuristic(Board board, ulong EnemeyAttacks, float GamePhase, int colour, bool dominated) //this is for when the game is essentially won to help speed up the delivery of checkmate
+        {
+            int square = BitOperations.TrailingZeroCount(board.Pieces[colour*6 + 5]);
+            ulong BishopScope = PreComputeData.BishopAttacks[square, ((EnemeyAttacks & PreComputeData.BishopMasks[square]) * PreComputeData.BishopMagics[square]) >> (64 - Magic.BishopBits[square])].GetData();
+            ulong RookScope = PreComputeData.RookAttacks[square, ((EnemeyAttacks & PreComputeData.RookMasks[square]) * PreComputeData.RookMagics[square]) >> (64 - Magic.RookBits[square])].GetData();
+            //these have been in-lined because i am using the attack bitboards of the opposition as the blockers, not other pieces
+            int RookMobility = BitOperations.PopCount(RookScope);
+            int BishopMobility = BitOperations.PopCount(BishopScope);
+            int Mobility = RookMobility * BishopMobility;
+            int MiddleMobility = BitOperations.PopCount(BishopScope | RookScope & (colour == 0 ? 0xFFFFFFFFFFFFFF00 : 0x00FFFFFFFFFFFFFF)); //not including the bottom rank because thats fine
+            float Score;
+
+            if (BitOperations.PopCount(board.Pieces[colour*6]) <= 2 && GamePhase < 2000) //very few pawns so mate is worth trying to deliver so this becomes a positive heuristic
+            {
+                Score = Math.Min(Mobility, 20);
+                if (dominated) {
+                    Score += distance(square, BitOperations.TrailingZeroCount(board.Pieces[(colour==0 ? 1 : 0)*6+5])) * 10; //don't want to be trapped by opponents king
+                }
+                if ((board.Pieces[colour*6] << 8 & board.Pieces[5 + colour*6]) > 0) Score -= 20;
+            } else {
+                Score = -MiddleMobility*GamePhase/1000; //during the middle game we don't want the king exposed
+            }
+            return Score;
         }
 
         public static int distance(int index1, int index2)
@@ -442,14 +506,17 @@ namespace ChessEngine
             return ((MiddleScoreW-MiddleScoreB)*mgPhase + (EndScoreW-EndScoreB) * egPhase)/8000;
         }
 
-        public static void OrderMoves(Board board, Move[] Moves, Move HashMove, int Depth, Move PreviousMove)
+        public static bool OrderMoves(Board board, Move[] Moves, Move HashMove, int Depth, Move PreviousMove)
         {
+            bool isQuiet = true;
             List<(Move, float)> nonEmptyMoves = new List<(Move, float)>();
             foreach (var move in Moves)
             {
                 if (move.GetData() != 0)
                 {
-                    nonEmptyMoves.Add((move, EvaluateMove(board, move, HashMove, Depth, PreviousMove)));
+                    (float eval, bool quiet) = EvaluateMove(board, move, HashMove, Depth, PreviousMove);
+                    if (!quiet) isQuiet = false;
+                    nonEmptyMoves.Add((move, eval));
                 }
             }
             nonEmptyMoves.Sort((move1, move2) => move2.Item2.CompareTo(move1.Item2)); //this is cheaper after null moves are filtered out
@@ -457,17 +524,17 @@ namespace ChessEngine
             {
                 Moves[i] = nonEmptyMoves[i].Item1;
             }
-
-            //Array.Sort(Moves, (move1, move2) => EvaluateMove(board, move2, HashMove, Depth).CompareTo(EvaluateMove(board, move1, HashMove, Depth)));
+            return isQuiet;
         }
 
-        public static float EvaluateMove(Board board, Move move, Move HashMove, int Depth, Move PreviousMove)
+        public static (float, bool) EvaluateMove(Board board, Move move, Move HashMove, int Depth, Move PreviousMove)
         {
+            bool quiet = true;
             float score = 0;
-            if (move.GetData() == 0) return -10000000; // empty move
-            if (move.GetData() == HashMove.GetData()) return 1000000;
-            if (move.GetData() == KillerMoves[Depth][0].GetData()) score += 2500;
-            if (move.GetData() == KillerMoves[Depth][1].GetData()) score += 2000;
+            if (move.GetData() == 0) return (-10000000, false); // empty move
+            if (move.GetData() == HashMove.GetData()) return (1000000, false);
+            if (move.GetData() == KillerMoves[Depth][0].GetData()) {score += 2500; quiet = false;}
+            if (move.GetData() == KillerMoves[Depth][1].GetData()) {score += 2000; quiet = false;}
             if (move.GetData() == CounterMoves[PreviousMove.GetStart(),PreviousMove.GetTarget()].GetData()) score += 1500;
             int HistoryScore = HistoryTable[move.GetStart(), move.GetTarget(), move.GetFlag()];
             if (HistoryScore > 1000) {HistoryScore =1000;HistoryTable[move.GetStart(), move.GetTarget(), move.GetFlag()] = 1000;}
@@ -475,6 +542,7 @@ namespace ChessEngine
             int capture = move.GetCapture();
             if (capture != 7)
             {
+                quiet = false;
                 score += 10 * Math.Abs(MaterialValues[capture]);
                 score -= Math.Abs(MaterialValues[move.GetPiece()]);
             }
@@ -482,13 +550,14 @@ namespace ChessEngine
             if ((move.GetFlag() & 0b1000) > 0) //move is a promotion
             {
                 score += move.GetPiece() * 10;
+                quiet = false;
             }
             int target = move.GetTarget();
             if (((target % 8 == 3) || (target % 8 == 4)) && ((target / 8 == 3) || (target / 8 == 4)))
             {
                 score += (1000 - MaterialValues[move.GetPiece()]) / 4;
             }
-            return score;
+            return (score, quiet);
         }
 
         public static void UpdateHistoryTable(Move move, int Depth)
